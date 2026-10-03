@@ -153,7 +153,7 @@ jobs:
         cd openwrt
         mkdir -p ../firmware
         # 保留 Tenda BE12 Pro 相关固件 + dae/daed 包
-        find /bin/targets/mediatek/filogic/* -type f \( -name "*tenda_be12-pro*" -o -name "*.manifest" -o -name "config.buildinfo" \) -exec cp -v {} ../firmware/ \;
+        find bin/targets/mediatek/filogic/* -type f \( -name "*tenda_be12-pro*" -o -name "*.manifest" -o -name "config.buildinfo" \) -exec cp -v {} ../firmware/ \;
         find bin/packages/ -type f \( -name "dae_*" -o -name "daed_*" -o -name "luci-app-daede*" -o -name "luci-i18n-daede*" -o -name "vmlinux-btf*" -o -name "v2ray-geo*" \) 2>/dev/null -exec cp -v {} ../firmware/ \; || true
         ls -lh ../firmware/
 
