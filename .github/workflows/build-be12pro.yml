@@ -1,18 +1,16 @@
-name: Build FanchmWrt RE-SS-01 + daed
+name: Build FanchmWrt Tenda BE12 Pro + daed
 
 on:
   # 手动触发 (仅测试/紧急用); 正常只由 schedule 在上游有更新时自动构建
   workflow_dispatch:
   # 每天检查一次上游是否有新提交 (UTC 00:20 = 北京 08:20); 无更新时 check 直接跳过, 不会构建
-  # 本仓库 push 不触发任何构建; 构建时自动克隆上游最新源码 (同步在构建内完成)
   schedule:
     - cron: '20 0 * * *'
-  # 构建成功自动创建 Release, tag 形如 v20260925-abc1234 (日期+上游短SHA, 同上游版本自动去重)
 
 env:
   REPO_URL: https://github.com/fanchmwrt/fanchmwrt-snapshot.git
   REPO_BRANCH: fanchmwrt-26.05
-  CONFIG_FILE: config/re-ss-01-daed.config
+  CONFIG_FILE: config/tenda-be12-pro-daed.config
   DIY_P1_SH: scripts/diy-part1.sh
   DIY_P2_SH: scripts/diy-part2.sh
   TZ: Asia/Shanghai
@@ -21,7 +19,7 @@ permissions:
   contents: write
 
 jobs:
-  # 检查上游 fanchmwrt-snapshot 是否有新提交 (只在定时触发时跳过判断, 手动/push 总是构建)
+  # 检查上游 fanchmwrt-snapshot 是否有新提交
   check:
     runs-on: ubuntu-22.04
     outputs:
@@ -37,10 +35,9 @@ jobs:
         set -eu
         UP=$(git ls-remote "$REPO_URL" "refs/heads/$REPO_BRANCH" | head -1 | cut -f1)
         SHORT="${UP:0:7}"
-        TAG="v$(date -u +%Y%m%d)-${SHORT}"
+        TAG="tenda-be12-pro-v$(date -u +%Y%m%d)-${SHORT}"
         BUILD=true
         if [ "${{ github.event_name }}" = "schedule" ]; then
-          # 比对 tag+标题+说明里是否已含上游短SHA (v1.0 是旧式tag, SHA在说明里, 所以查body)
           if gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[] | (.tag_name, .name, .body)' | grep -q "$SHORT"; then
             BUILD=false
             echo "上游 $SHORT 已有对应发行版, 跳过本次构建"
@@ -108,18 +105,19 @@ jobs:
         chmod +x $DIY_P2_SH
         cd openwrt
         ../$DIY_P2_SH
-        # 把 config 目录的完整 .config 拷进去并展开 (先删掉旧链接/文件避免 same file 报错)
         rm -f .config
         cp ../$CONFIG_FILE .config
         make defconfig
         echo "===== 生效的关键配置 ====="
-        grep -E "jdcloud_re-ss-01|TARGET_qualcommax|BPF_TOOLCHAIN|DEVEL=|PACKAGE_(dae|daed|luci-app-daede)|KERNEL_DEBUG_INFO|KERNEL_BPF_EVENTS|KERNEL_XDP_SOCKETS|v2ray-geo|vmlinux-btf|kmod-sched-bpf|kmod-veth" .config || true
+        grep -E "tenda_be12-pro|TARGET_mediatek|BPF_TOOLCHAIN|DEVEL=|PACKAGE_(dae|daed|luci-app-daede)|KERNEL_DEBUG_INFO|KERNEL_BPF_EVENTS|KERNEL_XDP_SOCKETS|v2ray-geo|vmlinux-btf|kmod-sched-bpf|kmod-veth" .config || true
         echo "===== 主机 clang (BPF_TOOLCHAIN_HOST 要 >=12) ====="
         which clang llc opt llvm-strip; clang --version | head -2
-        echo "===== defconfig 后硬检查 (任一失败立即退出, 不浪费编译时间) ====="
+        echo "===== defconfig 后硬检查 ====="
         fail=0
         check() { if ! grep -q "$1" .config; then echo "FAIL: $1"; fail=1; else echo "OK: $1"; fi; }
-        check "^CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_jdcloud_re-ss-01=y"
+        check "^CONFIG_TARGET_mediatek=y"
+        check "^CONFIG_TARGET_mediatek_mt7986=y"
+        check "^CONFIG_TARGET_mediatek_mt7986_DEVICE_tenda_be12-pro=y"
         check "^CONFIG_DEVEL=y"
         check "^CONFIG_BPF_TOOLCHAIN_HOST=y"
         check "^CONFIG_KERNEL_DEBUG_INFO=y"
@@ -127,17 +125,11 @@ jobs:
         check "^CONFIG_PACKAGE_dae=y"
         check "^CONFIG_PACKAGE_daed=y"
         check "^CONFIG_PACKAGE_luci-app-daede=y"
-        # vmlinux-btf 可 =y 也可 =m: 内核 BTF 生效后它只是备用安装包
         check "^CONFIG_PACKAGE_vmlinux-btf=[ym]"
         check "^CONFIG_PACKAGE_kmod-sched-bpf=y"
         check "^CONFIG_PACKAGE_v2ray-geoip=y"
         check "^CONFIG_KERNEL_CGROUPS=y"
-        # RE-SS-01 必须是 12M 内核分区 (diy-part2 打的 HLOS12M 补丁), 否则 FIT 超限
-        if sed -n '/^define Device\/jdcloud_re-ss-01$/,/^endef$/p' target/linux/qualcommax/image/ipq60xx.mk | grep -q 'KERNEL_SIZE := 12288k'; then
-          echo "OK: RE-SS-01 KERNEL_SIZE := 12288k"
-        else
-          echo "FAIL: RE-SS-01 KERNEL_SIZE != 12288k"; fail=1
-        fi
+        
         if [ "$fail" -ne 0 ]; then echo "ERROR: defconfig 后关键配置丢失"; exit 1; fi
         echo "所有关键配置校验通过"
 
@@ -152,7 +144,7 @@ jobs:
       run: |
         cd openwrt
         echo -e "$(nproc) thread compile"
-        make -j$(($(nproc)+1)) || make -j1 V=s
+        make -j$(动作nproc+1)) || make -j1 V=s
         echo "BUILD_STATUS=success" >> $GITHUB_ENV
 
     - name: 整理固件
@@ -160,9 +152,8 @@ jobs:
       run: |
         cd openwrt
         mkdir -p ../firmware
-        # 只保留 RE-SS-01 相关固件 + dae/daed 包, 避免 artifact 过大
-        find bin/targets/qualcommax/ipq60xx/ -type f \( -name "*re-ss-01*" -o -name "*.manifest" -o -name "config.buildinfo" \) -exec cp -v {} ../firmware/ \;
-        # 打包 dae/daed 的 ipk/apks (snapshot 默认是 apk)
+        # 保留 Tenda BE12 Pro 相关固件 + dae/daed 包
+        find bin/targets/mediatek/mt7986/ -type f \( -name "*tenda_be12-pro*" -o -name "*.manifest" -o -name "config.buildinfo" \) -exec cp -v {} ../firmware/ \;
         find bin/packages/ -type f \( -name "dae_*" -o -name "daed_*" -o -name "luci-app-daede*" -o -name "luci-i18n-daede*" -o -name "vmlinux-btf*" -o -name "v2ray-geo*" \) 2>/dev/null -exec cp -v {} ../firmware/ \; || true
         ls -lh ../firmware/
 
@@ -170,7 +161,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: env.BUILD_STATUS == 'success'
       with:
-        name: fanchmwrt-re-ss-01-daed
+        name: fanchmwrt-tenda-be12-pro-daed
         path: firmware/*
 
     - name: 发布到 Release
@@ -178,10 +169,10 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ needs.check.outputs.tag }}
-        name: RE-SS-01 + daed ${{ needs.check.outputs.tag }} (内置daed, 12M内核)
+        name: Tenda BE12 Pro + daed ${{ needs.check.outputs.tag }} (内置daed全家桶)
         target_commitish: ${{ github.sha }}
         files: firmware/*
         body: |
-          JDCloud RE-SS-01 (AX1800 Pro) 一体固件, 基于 fanchmwrt-snapshot 26.05, 内置 daed 全家桶, 开箱即用。
+          Tenda BE12 Pro 一体固件, 基于 fanchmwrt-snapshot 26.05, 内置 daed 全家桶, 开箱即用。
 
           上游同步: fanchmwrt/fanchmwrt-snapshot@${{ needs.check.outputs.upstream }}
