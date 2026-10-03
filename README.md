@@ -1,4 +1,4 @@
-# NatserverWrt for 京东云亚瑟 AX1800 Pro（RE-SS-01）
+# testWrt for tenda be12 pro
 
 ## 内置软件
 
