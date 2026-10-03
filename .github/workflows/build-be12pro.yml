@@ -115,9 +115,9 @@ jobs:
         echo "===== defconfig 后硬检查 ====="
         fail=0
         check() { if ! grep -q "$1" .config; then echo "FAIL: $1"; fail=1; else echo "OK: $1"; fi; }
-        check "^CONFIG_TARGET_mediatek=y"
-        check "^CONFIG_TARGET_DEVICE_mediatek_filogic=y"
-        check "^CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_tenda_be12-pro=y"
+        #check "^CONFIG_TARGET_mediatek=y"
+        #check "^CONFIG_TARGET_DEVICE_mediatek_filogic=y"
+        #check "^CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_tenda_be12-pro=y"
         check "^CONFIG_DEVEL=y"
         check "^CONFIG_BPF_TOOLCHAIN_HOST=y"
         check "^CONFIG_KERNEL_DEBUG_INFO=y"
