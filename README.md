@@ -5,19 +5,6 @@
 - **eBPF / BTF 内核支持**：已开启 BTF、XDP、BPF Events、CGROUPS、BPF 工具链，并内置 daed 所需内核模块（kmod-sched-core / kmod-sched-bpf / kmod-veth / kmod-xdp-sockets-diag）；
 - **加强版 daed 已预装**：刷机即用，无需手动安装。
 
-## 刷机流程
-
-1. 刷 **12M 大分区 U-Boot**（HLOS 12MiB）；
-2. 刷 **2GB GPT 模板**（rootfs 扩到 2048MiB，用于装固件，不能省略）；
-3. U-Boot 页面刷本项目 `factory.bin`
-4. Web 升级 `sysupgrade.bin`。
-
-### 刷机文件下载
-
-| 文件 | 下载 |
-| --- | --- |
-| 12M 大分区 U-Boot（jdcloud_re-ss-01） | [直接下载 .bin](https://github.com/chenxin527/uboot-qsdk12.5-build/releases/download/26.08.16-14.22.36-3011049/uboot-ipq60xx-jdcloud_re-ss-01-260816_142236_3011049.bin) |
-| GPT 模板（rootfs2048M / HLOS12M） | [直接下载 .bin](https://github.com/GHNERCH/DAEWRT-AX1800PRO/raw/main/gpt-JDC_AX1800_Pro_dual-boot_rootfs2048M_HLOS12M_no-last-partition.bin) |
 
 ## 鸣谢
 
