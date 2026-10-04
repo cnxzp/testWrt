@@ -16,16 +16,20 @@ fi
 WIFI_CONFIG="package/kernel/mac80211/files/lib/wifi/mac80211.sh"
 
 if [ -f "$WIFI_CONFIG" ]; then
+    # 【全新加入】将默认的无线名称（通常原生为 OpenWrt）全局强制替换为 DT
+    sed -i 's/ssid=FanchmWrt/ssid=DT/g' $WIFI_CONFIG
+    
     # 将默认加密方式从 none 或者是 mixed-psk 统一修改为 wpa2-psk
     sed -i 's/encryption=none/encryption=psk2/g' $WIFI_CONFIG
     sed -i 's/encryption=mixed-psk/encryption=psk2/g' $WIFI_CONFIG
     
     # 强制将默认无线密码行（key）替换或注入为 mqy-4708
     sed -i 's/key=./key=mqy-4708/g' $WIFI_CONFIG
-    # 防御性规避：如果原本脚本中没有 key 这一行，则在 ssid 下方直接强制插入密码和加密配置
-    sed -i '/set wireless.default_radio${devidx}.ssid/a \\t\t\t\tset wireless.default_radio${devidx}.encryption=psk2\n\t\t\t\tset wireless.default_radio${devidx}.key=mqy-4708' $WIFI_CONFIG
     
-    echo "Wireless password successfully set to mqy-4708 for both 2.4G and 5G!"
+    # 防御性规避：如果原生脚本缺乏初始化行，直接整段强制覆盖/追加注入
+    sed -i '/set wireless.default_radio${devidx}.ssid/a \\t\t\t\tset wireless.default_radio${devidx}.ssid=DT\n\t\t\t\tset wireless.default_radio${devidx}.encryption=psk2\n\t\t\t\tset wireless.default_radio${devidx}.key=mqy-4708' $WIFI_CONFIG
+    
+    echo "Wireless SSID successfully set to 'DT' and password set to 'mqy-4708' for both 2.4G and 5G!"
 fi
 
 # 2. 默认主机名 -> NatserverWrt (顶栏侧边品牌等取 hostname)
