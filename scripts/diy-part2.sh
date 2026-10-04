@@ -8,6 +8,25 @@ sed -i 's/192\.168\.1\.1/192.168.1.3/g' package/base-files/files/bin/config_gene
 if ! grep -q '192\.168\.1\.3' package/base-files/files/bin/config_generate; then
   echo "ERROR: LAN 默认 IP 192.168.1.3 未生效" >&2; exit 1
 fi
+# =====================================================================
+# 【新增功能】强制修改 2.4G 和 5G 的默认无线加密方式为 WPA2-PSK 且密码为 mqy-4708
+# =====================================================================
+
+# 准确定位 MTK filogic 架构对应的无线脚本文件
+WIFI_CONFIG="package/kernel/mac80211/files/lib/wifi/mac80211.sh"
+
+if [ -f "$WIFI_CONFIG" ]; then
+    # 将默认加密方式从 none 或者是 mixed-psk 统一修改为 wpa2-psk
+    sed -i 's/encryption=none/encryption=psk2/g' $WIFI_CONFIG
+    sed -i 's/encryption=mixed-psk/encryption=psk2/g' $WIFI_CONFIG
+    
+    # 强制将默认无线密码行（key）替换或注入为 mqy-4708
+    sed -i 's/key=./key=mqy-4708/g' $WIFI_CONFIG
+    # 防御性规避：如果原本脚本中没有 key 这一行，则在 ssid 下方直接强制插入密码和加密配置
+    sed -i '/set wireless.default_radio${devidx}.ssid/a \\t\t\t\tset wireless.default_radio${devidx}.encryption=psk2\n\t\t\t\tset wireless.default_radio${devidx}.key=mqy-4708' $WIFI_CONFIG
+    
+    echo "Wireless password successfully set to mqy-4708 for both 2.4G and 5G!"
+fi
 
 # 2. 默认主机名 -> NatserverWrt (顶栏侧边品牌等取 hostname)
 sed -i "s/hostname='[^']*'/hostname='NatserverWrt'/g" package/base-files/files/bin/config_generate
