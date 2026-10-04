@@ -9,3 +9,4 @@
 ## 鸣谢
 
 fanchmwrt：[仓库链接](https://github.com/fanchmwrt/fanchmwrt-snapshot)
+natserver：[仓库链接](https://github.com/natserver/NatserverWrt)
