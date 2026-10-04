@@ -10,17 +10,36 @@ if ! grep -q '192\.168\.1\.3' package/base-files/files/bin/config_generate; then
 fi
 
 # =====================================================================
-# 通过 uci-defaults 脚本，在路由器初次开机时强行锁死无线配置
+# 智能多频修复升级版开机脚本，精准分离 2.4G 与 5G 无线配置
 # =====================================================================
 mkdir -p package/base-files/files/etc/uci-defaults
 
 cat > package/base-files/files/etc/uci-defaults/99-default-wifi << 'EOF'
 #!/bin/sh
 
-# 遍历所有存在的无线网络接口并进行强制改写
+# 遍历所有无线接口（wifi-iface）进行智能甄别与独立赋值
 uci -q show wireless | grep "=wifi-iface" | cut -d'.' -f2 | cut -d'=' -f1 | while read -r iface; do
-    uci set wireless.${iface}.ssid='DT'
-    uci set wireless.${iface}.encryption='psk2'
+    # 提取当前接口关联的物理设备名 (例如 radio0, radio1)
+    device=$(uci -q get wireless.${iface}.device)
+    [ -z "$device" ] && continue
+
+    # 通过物理设备的配置特征模糊匹配频段（支持开源 mac80211 与联发科闭源 mt_wifi 命名规范）
+    hwmode=$(uci -q get wireless.${device}.hwmode)
+    band=$(uci -q get wireless.${device}.band)
+    path=$(uci -q get wireless.${device}.path)
+
+    # 智能判定：如果设备参数中包含 5G 特征（11a, 11ac, 11ax, 11be 或者是 5G 芯片常用特征）
+    if echo "$hwmode $band $device $path" | grep -qE "a|5g|11a|11ax|11be|mt7987_5g"; then
+        # 5G 频段：网络名改为 DT-5G，加密升级为 WPA3-SAE
+        uci set wireless.${iface}.ssid='DT-5G'
+        uci set wireless.${iface}.encryption='sae'
+    else
+        # 2.4G 频段：网络名保持 DT，加密使用 WPA2-PSK
+        uci set wireless.${iface}.ssid='DT'
+        uci set wireless.${iface}.encryption='psk2'
+    fi
+
+    # 统一样式：锁死密码为 mqy-4708
     uci set wireless.${iface}.key='mqy-4708'
 done
 
@@ -29,7 +48,7 @@ exit 0
 EOF
 
 chmod +x package/base-files/files/etc/uci-defaults/99-default-wifi
-echo "Force lock Wi-Fi SSID to 'DT' and password to 'mqy-4708' via uci-defaults script."
+echo "Advanced Wi-Fi separation configured: 2.4G (DT, WPA2), 5G (DT-5G, WPA3), Password (mqy-4708)."
 
 
 # 2. 默认主机名 -> NatserverWrt (顶栏侧边品牌等取 hostname)
