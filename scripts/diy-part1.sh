@@ -15,6 +15,6 @@ fi
 # fi
 
 # 添加turboacc
-echo 'src-git turboacc https://github.com/mufeng05/turboacc.git' >> feeds.conf.default
+#echo 'src-git turboacc https://github.com/mufeng05/turboacc.git' >> feeds.conf.default
 
 cat feeds.conf.default
