@@ -14,10 +14,7 @@ fi
 #   echo 'src-git daed_luci https://github.com/QiuSimons/luci-app-daed.git' >> feeds.conf.default
 # fi
 
-# 添加istore商店
-echo >> feeds.conf.default
-echo 'src-git istore https://github.com/linkease/istore;main' >> feeds.conf.default
-./scripts/feeds update istore
-./scripts/feeds install -d y -p istore luci-app-store
+# 添加turboacc
+echo 'src-git turboacc https://github.com/mufeng05/turboacc.git' >> feeds.conf.default
 
 cat feeds.conf.default
