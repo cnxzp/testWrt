@@ -9,67 +9,6 @@ if ! grep -q '192\.168\.1\.3' package/base-files/files/bin/config_generate; then
   echo "ERROR: LAN 默认 IP 192.168.1.3 未生效" >&2; exit 1
 fi
 
-#!/bin/bash
-
-# 1. 强行在内核中塞入 eBPF 及相关标准网络容器依赖（daed 运行必须）
-echo "CONFIG_KERNEL_BPF_EVENTS=y" >> .config
-echo "CONFIG_KERNEL_CGROUP_BPF=y" >> .config
-echo "CONFIG_PACKAGE_libbpf=y" >> .config
-
-# 2. 彻底扩大搜索粉碎范围，把核心内核/通用目录下的 SFE 冲突补丁全部强制抹除
-find package/ -name "*shortcut-fe*.patch" -exec rm -f {} \;
-find target/linux/ -name "*shortcut-fe*.patch" -exec rm -f {} \;
-find target/linux/ -name "953-net-patch-linux-kernel-to-support-shortcut-fe.patch" -exec rm -f {} \;
-
-# 3. 彻底粉碎固件源码自带的 smpackage 内 dae / daede / turboacc 冲突目录
-rm -rf package/feeds/smpackage/dae
-rm -rf package/feeds/smpackage/daed
-rm -rf package/feeds/smpackage/luci-app-daed
-rm -rf package/feeds/smpackage/luci-app-daede
-rm -rf package/feeds/smpackage/luci-app-turboacc
-rm -rf feeds/smpackage/dae
-rm -rf feeds/smpackage/daed
-rm -rf feeds/smpackage/luci-app-daed
-rm -rf feeds/smpackage/luci-app-daede
-rm -rf feeds/smpackage/luci-app-turboacc
-
-# 4. 建立干净的本地免编译 dae 核心包（直接打包官方预编译 arm64 二进制）
-mkdir -p package/dae/files
-cd package/dae/files
-curl -L -o dae https://github.com
-chmod +x dae
-
-cd /workdir/openwrt
-
-# 重新生成免编译 Makefile
-cat > package/dae/Makefile << 'EOF'
-include $(TOPDIR)/rules.mk
-
-PKG_NAME:=dae
-PKG_VERSION:=2026.09.24
-PKG_RELEASE:=1
-
-include $(INCLUDE_DIR)/package.mk
-
-define Package/dae
-  SECTION:=net
-  CATEGORY:=Network
-  TITLE:=dae core (Prebuilt for aarch64)
-  DEPENDS:=+libbpf +kmod-tun +ip-full
-enddefine
-
-define Build/Compile
-	# 空步骤，跳过源码编译
-enddefine
-
-define Package/dae/install
-	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) ./files/dae $(1)/usr/bin/dae
-enddefine
-
-$(eval $(call BuildPackage,dae))
-EOF
-
 # =====================================================================
 # 通过 uci-defaults 脚本，在路由器初次开机时强行锁死无线配置
 # =====================================================================
