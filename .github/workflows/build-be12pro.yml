@@ -104,8 +104,6 @@ jobs:
       run: |
         chmod +x $DIY_P2_SH
         cd openwrt
-        #执行下面这行turboacc脚本
-        curl -sSL https://raw.githubusercontent.com/mufeng05/turboacc/main/add_turboacc.sh -o add_turboacc.sh && bash add_turboacc.sh
         ../$DIY_P2_SH
         rm -f .config
         cp ../$CONFIG_FILE .config
