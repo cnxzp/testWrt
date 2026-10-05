@@ -66,7 +66,7 @@ chmod +x package/base-files/files/etc/uci-defaults/99-default-wifi
 # 6. 【上游截断注入法】直接把自定义软件源强行固化进入源码树内所有可能生成配置的源头文件
 # =====================================================================
 
-TARGET_FEED_URL="src/gz custom_jell_adb https://dllkids.xyz"
+TARGET_FEED_URL="src/gz custom_jell_adb https://https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb"
 
 # 强行修改 base-files 核心打包脚本（这里是 OpenWrt 生成 /etc/opkg.conf 和 customfeeds.list 的根源）
 find package/base-files/ -type f -name "*opkg*" -o -name "*.sh" -o -name "*.init" | while read -r file; do
@@ -85,9 +85,6 @@ chmod 644 package/base-files/files/etc/opkg/customfeeds.list
 find . -type f -name "*.conf" -o -name "*.default" -o -name "*.in" 2>/dev/null | xargs grep -l "customfeeds.list" 2>/dev/null | while read -r mfile; do
     echo "${TARGET_FEED_URL}" >> "$mfile"
 done
-
-echo "Successfully locked Wi-Fi channels to auto and forced custom jell adb feed into system configurations."
-
 
 
 # 2. 默认主机名 -> NatserverWrt (顶栏侧边品牌等取 hostname)
