@@ -10,36 +10,45 @@ if ! grep -q '192\.168\.1\.3' package/base-files/files/bin/config_generate; then
 fi
 
 # =====================================================================
-# 智能多频修复升级版开机脚本，精准分离 2.4G 与 5G 无线配置
+# 5. 【MTK 原厂闭源驱动专用】多频精准物理隔离脚本
 # =====================================================================
 mkdir -p package/base-files/files/etc/uci-defaults
 
 cat > package/base-files/files/etc/uci-defaults/99-default-wifi << 'EOF'
 #!/bin/sh
 
-# 遍历所有无线接口（wifi-iface）进行智能甄别与独立赋值
+# 遍历所有无线接口进行精准匹配
 uci -q show wireless | grep "=wifi-iface" | cut -d'.' -f2 | cut -d'=' -f1 | while read -r iface; do
-    # 提取当前接口关联的物理设备名 (例如 radio0, radio1)
     device=$(uci -q get wireless.${iface}.device)
     [ -z "$device" ] && continue
 
-    # 通过物理设备的配置特征模糊匹配频段（支持开源 mac80211 与联发科闭源 mt_wifi 命名规范）
-    hwmode=$(uci -q get wireless.${device}.hwmode)
-    band=$(uci -q get wireless.${device}.band)
+    # 获取该设备在 mt_wifi 中的物理路径特征或频段声明
+    # 联发科原厂 SDK 5G 芯片固定挂载在 .1.2 节点，或设备名直接叫 radio2 / wlan1
+    is_5g=0
+    
+    # 判定方法 1: 查看 device 的名称是否含有 5g、radio2、wlan1 
+    if echo "$device" | grep -qE "5g|radio2|wlan1"; then
+        is_5g=1
+    fi
+    
+    # 判定方法 2: 查看原厂驱动底层的 path 路径特征 (MT7987 的 5G 通常在 1.2 节点)
     path=$(uci -q get wireless.${device}.path)
+    if echo "$path" | grep -q "1.2"; then
+        is_5g=1
+    fi
 
-    # 智能判定：如果设备参数中包含 5G 特征（11a, 11ac, 11ax, 11be 或者是 5G 芯片常用特征）
-    if echo "$hwmode $band $device $path" | grep -qE "a|5g|11a|11ax|11be|mt7987_5g"; then
-        # 5G 频段：网络名改为 DT-5G，加密升级为 WPA3-SAE
+    # 根据判定结果，执行严格的隔离配置
+    if [ "$is_5g" -eq 1 ]; then
+        # 5G 频段独享配置
         uci set wireless.${iface}.ssid='DT-5G'
         uci set wireless.${iface}.encryption='sae'
     else
-        # 2.4G 频段：网络名保持 DT，加密使用 WPA2-PSK
+        # 2.4G 频段独享配置
         uci set wireless.${iface}.ssid='DT'
         uci set wireless.${iface}.encryption='psk2'
     fi
 
-    # 统一样式：锁死密码为 mqy-4708
+    # 密码两频保持一致
     uci set wireless.${iface}.key='mqy-4708'
 done
 
@@ -48,7 +57,7 @@ exit 0
 EOF
 
 chmod +x package/base-files/files/etc/uci-defaults/99-default-wifi
-echo "Advanced Wi-Fi separation configured: 2.4G (DT, WPA2), 5G (DT-5G, WPA3), Password (mqy-4708)."
+echo "MTK driver patch applied: 2.4G and 5G successfully separated."
 
 
 # 2. 默认主机名 -> NatserverWrt (顶栏侧边品牌等取 hostname)
