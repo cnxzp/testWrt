@@ -10,45 +10,46 @@ if ! grep -q '192\.168\.1\.3' package/base-files/files/bin/config_generate; then
 fi
 
 # =====================================================================
-# 5. 【MTK 原厂闭源驱动专用】多频精准物理隔离脚本
+# 5. 【双重保底防漏阵】开机硬核剥离脚本
 # =====================================================================
 mkdir -p package/base-files/files/etc/uci-defaults
 
 cat > package/base-files/files/etc/uci-defaults/99-default-wifi << 'EOF'
 #!/bin/sh
 
-# 遍历所有无线接口进行精准匹配
+# 策略 1：首先尝试通过设备代号的物理索引（数字后缀）进行严格切分
 uci -q show wireless | grep "=wifi-iface" | cut -d'.' -f2 | cut -d'=' -f1 | while read -r iface; do
     device=$(uci -q get wireless.${iface}.device)
     [ -z "$device" ] && continue
 
-    # 获取该设备在 mt_wifi 中的物理路径特征或频段声明
-    # 联发科原厂 SDK 5G 芯片固定挂载在 .1.2 节点，或设备名直接叫 radio2 / wlan1
-    is_5g=0
-    
-    # 判定方法 1: 查看 device 的名称是否含有 5g、radio2、wlan1 
-    if echo "$device" | grep -qE "5g|radio2|wlan1"; then
-        is_5g=1
-    fi
-    
-    # 判定方法 2: 查看原厂驱动底层的 path 路径特征 (MT7987 的 5G 通常在 1.2 节点)
-    path=$(uci -q get wireless.${device}.path)
-    if echo "$path" | grep -q "1.2"; then
-        is_5g=1
-    fi
-
-    # 根据判定结果，执行严格的隔离配置
-    if [ "$is_5g" -eq 1 ]; then
-        # 5G 频段独享配置
+    # 联发科原厂或现代 OpenWrt 命名中，1、2 或以 _5g 结尾代表 5G 芯片
+    if echo "$device" | grep -qE "1$|2$|5g|wlan1"; then
         uci set wireless.${iface}.ssid='DT-5G'
         uci set wireless.${iface}.encryption='sae'
     else
-        # 2.4G 频段独享配置
         uci set wireless.${iface}.ssid='DT'
         uci set wireless.${iface}.encryption='psk2'
     fi
+    uci set wireless.${iface}.key='mqy-4708'
+done
+uci commit wireless
 
-    # 密码两频保持一致
+# 策略 2：【终极杀招】如果两频设备名完全一样导致上述策略没变，直接通过排队顺序强制切割
+# 联发科原厂驱动加载出来的第一个接口必为 2.4G，第二个接口必为 5G
+ifaces=$(uci -q show wireless | grep "=wifi-iface" | cut -d'.' -f2 | cut -d'=' -f1)
+count=0
+
+for iface in $ifaces; do
+    count=$((count + 1))
+    if [ "$count" -eq 1 ]; then
+        # 强制将排在第一位的接口恢复为 2.4G 规范
+        uci set wireless.${iface}.ssid='DT'
+        uci set wireless.${iface}.encryption='psk2'
+    else
+        # 强制将排在后面（第二位及以上）的接口升级为 5G 规范
+        uci set wireless.${iface}.ssid='DT-5G'
+        uci set wireless.${iface}.encryption='sae'
+    fi
     uci set wireless.${iface}.key='mqy-4708'
 done
 
@@ -57,7 +58,7 @@ exit 0
 EOF
 
 chmod +x package/base-files/files/etc/uci-defaults/99-default-wifi
-echo "MTK driver patch applied: 2.4G and 5G successfully separated."
+echo "Absolute Wi-Fi split patch applied via dual-insurance sequence strategy."
 
 
 # 2. 默认主机名 -> NatserverWrt (顶栏侧边品牌等取 hostname)
