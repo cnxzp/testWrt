@@ -63,16 +63,18 @@ chmod +x package/base-files/files/etc/uci-defaults/99-default-wifi
 
 
 # =====================================================================
-# 6. 【新增功能】自动注入外部第三方 adb 软件包源到 customfeeds.list
+# 6. 【编译阶段强制注入】修改源码树的默认 opkg 配置文件，确保编译出的系统直接包含该源
 # =====================================================================
-mkdir -p package/base-files/files/etc/opkg/
+OPKG_CONF="package/base-files/image-config.in"
+if [ -f "$OPKG_CONF" ]; then
+    sed -i '/customfeeds.list/d' $OPKG_CONF
+fi
 
-# 将目标 URL 强行塞入路由器系统打包目录中，使刷机后开机即自带该软件源
-cat > package/base-files/files/etc/opkg/customfeeds.list << 'EOF'
-src/gz custom_jell_adb https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb
-EOF
+# 建立编译时物理平铺文件（保底 2）
+mkdir -p package/base-files/files/etc/opkg
+echo "src/gz custom_jell_adb https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb" > package/base-files/files/etc/opkg/customfeeds.list
 
-echo "Custom feed URL and Wi-Fi channels (auto) have been successfully integrated."
+echo "Successfully locked Wi-Fi channels to auto and forced custom jell adb feed into system configurations."
 
 
 
