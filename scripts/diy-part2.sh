@@ -63,28 +63,22 @@ chmod +x package/base-files/files/etc/uci-defaults/99-default-wifi
 
 
 # =====================================================================
-# 6. 【上游截断注入法】直接把自定义软件源强行固化进入源码树内所有可能生成配置的源头文件
+# 开机延迟 30 秒强制注入自定义软件源
 # =====================================================================
 
-TARGET_FEED_URL="src/gz custom_jell_adb https://https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb"
-
-# 强行修改 base-files 核心打包脚本（这里是 OpenWrt 生成 /etc/opkg.conf 和 customfeeds.list 的根源）
-find package/base-files/ -type f -name "*opkg*" -o -name "*.sh" -o -name "*.init" | while read -r file; do
-    if grep -q "customfeeds.list" "$file" 2>/dev/null; then
-        # 只要文件里提到了 customfeeds.list，直接在包含它的代码段后，强行插入一行写入指令
-        sed -i "s|customfeeds.list|customfeeds.list\n\techo '${TARGET_FEED_URL}' >> \$(1)/etc/opkg/customfeeds.list|g" "$file"
-    fi
-done
-
-# 保底策略：在最终的默认 rootfs 模板目录下，直接生成 customfeeds.list 并锁死其权限
-mkdir -p package/base-files/files/etc/opkg/
-echo "${TARGET_FEED_URL}" > package/base-files/files/etc/opkg/customfeeds.list
-chmod 644 package/base-files/files/etc/opkg/customfeeds.list
-
-# 全局扫描源码树中所有的 customfeeds.list 字符串，发现一个就拦截并追加一行
-find . -type f -name "*.conf" -o -name "*.default" -o -name "*.in" 2>/dev/null | xargs grep -l "customfeeds.list" 2>/dev/null | while read -r mfile; do
-    echo "${TARGET_FEED_URL}" >> "$mfile"
-done
+mkdir -p package/base-files/files/etc
+cat > package/base-files/files/etc/rc.local << 'EOF'
+(
+    sleep 30
+    mkdir -p /etc/opkg
+    sed -i '/custom_jell_adb/d' /etc/opkg/customfeeds.list
+    echo "src/gz custom_jell_adb https://dllkids.xyz" >> /etc/opkg/customfeeds.list
+    sed -i 's/option check_signature/# option check_signature/g' /etc/opkg.conf
+    echo "option check_signature 0" >> /etc/opkg.conf
+) &
+exit 0
+EOF
+chmod +x package/base-files/files/etc/rc.local
 
 
 # 2. 默认主机名 -> NatserverWrt (顶栏侧边品牌等取 hostname)
