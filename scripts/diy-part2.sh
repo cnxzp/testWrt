@@ -10,43 +10,45 @@ if ! grep -q '192\.168\.1\.3' package/base-files/files/bin/config_generate; then
 fi
 
 # =====================================================================
-# 5. 【双重保底防漏阵】开机硬核剥离脚本
+# 5. 【智能多频隔离 + 信道自动】双重保险开机 UCI 初始化脚本
 # =====================================================================
 mkdir -p package/base-files/files/etc/uci-defaults
 
 cat > package/base-files/files/etc/uci-defaults/99-default-wifi << 'EOF'
 #!/bin/sh
 
-# 策略 1：首先尝试通过设备代号的物理索引（数字后缀）进行严格切分
+# 策略 1：首先将所有无线物理硬件（radio）的信道强行设置为自动（auto）
+uci -q show wireless | grep "=wifi-device" | cut -d'.' -f2 | cut -d'=' -f1 | while read -r device; do
+    uci set wireless.${device}.channel='auto'
+done
+uci commit wireless
+
+# 策略 2：通过设备代号的物理索引（数字特征）进行无线名称和加密的切分
 uci -q show wireless | grep "=wifi-iface" | cut -d'.' -f2 | cut -d'=' -f1 | while read -r iface; do
     device=$(uci -q get wireless.${iface}.device)
     [ -z "$device" ] && continue
 
-    # 联发科原厂或现代 OpenWrt 命名中，1、2 或以 _5g 结尾代表 5G 芯片
     if echo "$device" | grep -qE "1$|2$|5g|wlan1"; then
         uci set wireless.${iface}.ssid='DT-5G'
         uci set wireless.${iface}.encryption='sae'
     else
-        uci set wireless.${iface}.ssid='DT'
+        uci set wireless.${iface}.ssid='ImmortalWrt'
         uci set wireless.${iface}.encryption='psk2'
     fi
     uci set wireless.${iface}.key='mqy-4708'
 done
 uci commit wireless
 
-# 策略 2：【终极杀招】如果两频设备名完全一样导致上述策略没变，直接通过排队顺序强制切割
-# 联发科原厂驱动加载出来的第一个接口必为 2.4G，第二个接口必为 5G
+# 策略 3：通过排队顺序终极切割，确保原厂驱动双频百分之百完美剥离
 ifaces=$(uci -q show wireless | grep "=wifi-iface" | cut -d'.' -f2 | cut -d'=' -f1)
 count=0
 
 for iface in $ifaces; do
     count=$((count + 1))
     if [ "$count" -eq 1 ]; then
-        # 强制将排在第一位的接口恢复为 2.4G 规范
-        uci set wireless.${iface}.ssid='DT'
+        uci set wireless.${iface}.ssid='ImmortalWrt'
         uci set wireless.${iface}.encryption='psk2'
     else
-        # 强制将排在后面（第二位及以上）的接口升级为 5G 规范
         uci set wireless.${iface}.ssid='DT-5G'
         uci set wireless.${iface}.encryption='sae'
     fi
@@ -58,7 +60,20 @@ exit 0
 EOF
 
 chmod +x package/base-files/files/etc/uci-defaults/99-default-wifi
-echo "Absolute Wi-Fi split patch applied via dual-insurance sequence strategy."
+
+
+# =====================================================================
+# 6. 【新增功能】自动注入外部第三方 adb 软件包源到 customfeeds.list
+# =====================================================================
+mkdir -p package/base-files/files/etc/opkg/
+
+# 将目标 URL 强行塞入路由器系统打包目录中，使刷机后开机即自带该软件源
+cat > package/base-files/files/etc/opkg/customfeeds.list << 'EOF'
+src/gz custom_jell_adb https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb
+EOF
+
+echo "Custom feed URL and Wi-Fi channels (auto) have been successfully integrated."
+
 
 
 # 2. 默认主机名 -> NatserverWrt (顶栏侧边品牌等取 hostname)
