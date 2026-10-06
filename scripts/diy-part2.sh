@@ -63,22 +63,24 @@ chmod +x package/base-files/files/etc/uci-defaults/99-default-wifi
 
 
 # =====================================================================
-# 开机延迟 30 秒强制注入自定义软件源
+# 6. 【新版 APK 专属骨架注入】直接修改核心开机加载脚本 /etc/init.d/boot
 # =====================================================================
+BOOT_SCRIPT="package/base-files/files/etc/init.d/boot"
 
-mkdir -p package/base-files/files/etc
-cat > package/base-files/files/etc/rc.local << 'EOF'
-(
-    sleep 30
-    mkdir -p /etc/opkg
-    sed -i '/custom_jell_adb/d' /etc/opkg/customfeeds.list
-    echo "src/gz custom_jell_adb https://dllkids.xyz" >> /etc/opkg/customfeeds.list
-    sed -i 's/option check_signature/# option check_signature/g' /etc/opkg.conf
-    echo "option check_signature 0" >> /etc/opkg.conf
-) &
-exit 0
-EOF
-chmod +x package/base-files/files/etc/rc.local
+if [ -f "$BOOT_SCRIPT" ]; then
+    # 针对新版 Linux 6.18 + apk 包管理器时代的专属固化逻辑
+    # 开机时自动创建 /etc/apk 目录，并向 repositories 强行追加外部第三方软件源
+    sed -i '2i\\tmkdir -p /etc/apk' $BOOT_SCRIPT
+    
+    # 核心修复：转换为新版 apk 能够完美解析识别的标准仓库 URL 格式
+    sed -i "3i\\techo 'https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb' >> /etc/apk/repositories" $BOOT_SCRIPT
+    
+    # 新版 apk 忽略签名（未签名源/自建源允许下载安装）的配置注入
+    sed -i '4i\\tmkdir -p /etc/apk/keys' $BOOT_SCRIPT
+    sed -i '5i\\techo "option allow_untrusted" >> /etc/apk/apk.conf' $BOOT_SCRIPT
+    
+    echo "Successfully patch /etc/init.d/boot template for modern APK package manager!"
+fi
 
 
 # 2. 默认主机名 -> NatserverWrt (顶栏侧边品牌等取 hostname)
