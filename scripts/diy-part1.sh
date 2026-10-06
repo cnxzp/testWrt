@@ -16,6 +16,6 @@ fi
 
 # 添加turboacc&istore
 #echo 'src-git turboacc https://github.com/mufeng05/turboacc.git' >> feeds.conf.default
-echo 'src-git istore https://github.com/linkease/istore.git' >> feeds.conf.default
+#echo 'src-git istore https://github.com/linkease/istore.git' >> feeds.conf.default
 
 cat feeds.conf.default
