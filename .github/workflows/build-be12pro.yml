@@ -97,6 +97,10 @@ jobs:
     - name: 更新并安装 feeds
       run: |
         cd openwrt
+        echo >> feeds.conf.default
+        echo 'src-git istore https://github.com/linkease/istore;main' >> feeds.conf.default
+        ./scripts/feeds update istore
+        ./scripts/feeds install -d y -p istore luci-app-store
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
@@ -122,7 +126,7 @@ jobs:
         check "^CONFIG_BPF_TOOLCHAIN_HOST=y"
         check "^CONFIG_KERNEL_DEBUG_INFO=y"
         check "^CONFIG_KERNEL_DEBUG_INFO_BTF=y"
-        check "^CONFIG_PACKAGE_luci-app-istore=y"
+        check "^CONFIG_PACKAGE_luci-app-store=y"
         check "^CONFIG_PACKAGE_dae=y"
         check "^CONFIG_PACKAGE_daed=y"
         check "^CONFIG_PACKAGE_luci-app-daede=y"
