@@ -10,7 +10,7 @@ if ! grep -q '192\.168\.1\.3' package/base-files/files/bin/config_generate; then
 fi
 
 # =====================================================================
-# 5. 【智能多频隔离 + 信道自动】双重保险开机 UCI 初始化脚本
+# 【智能多频隔离 + 信道自动】双重保险开机 UCI 初始化脚本
 # =====================================================================
 mkdir -p package/base-files/files/etc/uci-defaults
 
@@ -63,26 +63,26 @@ chmod +x package/base-files/files/etc/uci-defaults/99-default-wifi
 
 
 # =====================================================================
-# 5. 【核心修复】清除乱码误区，强制在系统开机引导最深处写入纯文本软件源
+# =====================================================================
+# 5. 【降维打击】破译新版影子兼容层，强行向真实路径注入纯文本软件源
 # =====================================================================
 BOOT_SCRIPT="package/base-files/files/etc/init.d/boot"
 
 if [ -f "$BOOT_SCRIPT" ]; then
-    # 彻底擦除之前误生成的 apk 乱码目录，保持系统纯净
-    rm -rf package/base-files/files/etc/apk
+    # 核心：在新版 apk 影子包管理器启动前，强制创建正确的包含 .d 的配置文件夹
+    # 绝对不去下载那个乱码的 packages.adb，而是直接写入纯文本仓库根链接
+    sed -i '2i\\tmkdir -p /etc/apk/repositories.d' $BOOT_SCRIPT
     
-    # 建立固定的 opkg 本地物理目录
-    mkdir -p package/base-files/files/etc/opkg
+    # 注入保底 1：直接喂给新版 apk 引擎最标准的纯文本地址（在 boot 倒数第二行强行追加）
+    sed -i "s|exit 0|echo 'https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb' >> /etc/apk/repositories.d/customfeeds.list\nexit 0|g" $BOOT_SCRIPT
     
-    # 核心注入：在 boot 引导脚本的开头，用最单纯的文本注入法钉死 customfeeds.list
-    # 注意：我们写入的是合法的 opkg 源地址行，而不是去下载那个乱码文件！
-    sed -i '2i\\tmkdir -p /etc/opkg' $BOOT_SCRIPT
-    sed -i "s|exit 0|echo 'src/gz custom_jell_adb https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb' >> /etc/opkg/customfeeds.list\nexit 0|g" $BOOT_SCRIPT
+    # 注入保底 2：满足旧版 opkg 伪装命令读取 customfeeds.list 文件的格式诉求（写死纯文本字符串）
+    sed -i "s|exit 0|echo 'src/gz custom_jell_adb https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb' >> /etc/apk/repositories.d/customfeeds.list\nexit 0|g" $BOOT_SCRIPT
     
-    # 保底：允许不信任源（自建源）免签名通过校验，防止因为没附带公钥导致读取失败
-    sed -i "s|exit 0|echo 'option check_signature 0' >> /etc/opkg.conf\nexit 0|g" $BOOT_SCRIPT
+    # 强行允许系统放行未签名的自建第三方软件源，杜绝安全证书报错
+    sed -i "s|exit 0|echo 'option allow_untrusted' >> /etc/apk/apk.conf\nexit 0|g" $BOOT_SCRIPT
     
-    echo "Successfully injected pure-text URL into customfeeds.list via boot script root!"
+    echo "Perfectly bypassed the shadow layers and locked down the modern customfeeds.list!"
 fi
 
 
