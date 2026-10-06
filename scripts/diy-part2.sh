@@ -63,24 +63,21 @@ chmod +x package/base-files/files/etc/uci-defaults/99-default-wifi
 
 
 # =====================================================================
-# 6. 【新版 APK 专属骨架注入】直接修改核心开机加载脚本 /etc/init.d/boot
+# 5. 【二进制降维接管】避开 echo 文本追加破坏，直接将官方原版二进制索引文件下载并固化
 # =====================================================================
-BOOT_SCRIPT="package/base-files/files/etc/init.d/boot"
+# 兼容旧版 opkg 物理目录
+mkdir -p package/base-files/files/etc/opkg
+curl -L -o package/base-files/files/etc/opkg/customfeeds.list https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb
+chmod 644 package/base-files/files/etc/opkg/customfeeds.list
 
-if [ -f "$BOOT_SCRIPT" ]; then
-    # 针对新版 Linux 6.18 + apk 包管理器时代的专属固化逻辑
-    # 开机时自动创建 /etc/apk 目录，并向 repositories 强行追加外部第三方软件源
-    sed -i '2i\\tmkdir -p /etc/apk' $BOOT_SCRIPT
-    
-    # 核心修复：转换为新版 apk 能够完美解析识别的标准仓库 URL 格式
-    sed -i "3i\\techo 'https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb' >> /etc/apk/repositories" $BOOT_SCRIPT
-    
-    # 新版 apk 忽略签名（未签名源/自建源允许下载安装）的配置注入
-    sed -i '4i\\tmkdir -p /etc/apk/keys' $BOOT_SCRIPT
-    sed -i '5i\\techo "option allow_untrusted" >> /etc/apk/apk.conf' $BOOT_SCRIPT
-    
-    echo "Successfully patch /etc/init.d/boot template for modern APK package manager!"
-fi
+# 兼容新版 apk 物理目录（防止新架构读取失败）
+mkdir -p package/base-files/files/etc/apk
+curl -L -o package/base-files/files/etc/apk/repositories https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb
+chmod 644 package/base-files/files/etc/apk/repositories
+# 保底：允许新旧版本包管理器直接信任未签名的数据结构，彻底解决 NoData 报错
+mkdir -p /etc/apk
+echo "option allow_untrusted" >> /etc/apk/apk.conf 2>/dev/null || true
+echo "option check_signature 0" >> /etc/opkg.conf 2>/dev/null || true
 
 
 # 2. 默认主机名 -> NatserverWrt (顶栏侧边品牌等取 hostname)
