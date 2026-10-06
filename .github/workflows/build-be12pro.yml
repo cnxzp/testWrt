@@ -9,7 +9,7 @@ on:
 
 env:
   REPO_URL: https://github.com/fanchmwrt/fanchmwrt-snapshot.git
-  REPO_BRANCH: fanchmwrt-26.08
+  REPO_BRANCH: fanchmwrt-26.05
   CONFIG_FILE: config/tenda-be12-pro-daed.config
   DIY_P1_SH: scripts/diy-part1.sh
   DIY_P2_SH: scripts/diy-part2.sh
