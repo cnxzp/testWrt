@@ -63,21 +63,27 @@ chmod +x package/base-files/files/etc/uci-defaults/99-default-wifi
 
 
 # =====================================================================
-# 5. 【二进制降维接管】避开 echo 文本追加破坏，直接将官方原版二进制索引文件下载并固化
+# 5. 【核心修复】清除乱码误区，强制在系统开机引导最深处写入纯文本软件源
 # =====================================================================
-# 兼容旧版 opkg 物理目录
-mkdir -p package/base-files/files/etc/opkg
-curl -L -o package/base-files/files/etc/opkg/customfeeds.list https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb
-chmod 644 package/base-files/files/etc/opkg/customfeeds.list
+BOOT_SCRIPT="package/base-files/files/etc/init.d/boot"
 
-# 兼容新版 apk 物理目录（防止新架构读取失败）
-mkdir -p package/base-files/files/etc/apk
-curl -L -o package/base-files/files/etc/apk/repositories https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb
-chmod 644 package/base-files/files/etc/apk/repositories
-# 保底：允许新旧版本包管理器直接信任未签名的数据结构，彻底解决 NoData 报错
-mkdir -p /etc/apk
-echo "option allow_untrusted" >> /etc/apk/apk.conf 2>/dev/null || true
-echo "option check_signature 0" >> /etc/opkg.conf 2>/dev/null || true
+if [ -f "$BOOT_SCRIPT" ]; then
+    # 彻底擦除之前误生成的 apk 乱码目录，保持系统纯净
+    rm -rf package/base-files/files/etc/apk
+    
+    # 建立固定的 opkg 本地物理目录
+    mkdir -p package/base-files/files/etc/opkg
+    
+    # 核心注入：在 boot 引导脚本的开头，用最单纯的文本注入法钉死 customfeeds.list
+    # 注意：我们写入的是合法的 opkg 源地址行，而不是去下载那个乱码文件！
+    sed -i '2i\\tmkdir -p /etc/opkg' $BOOT_SCRIPT
+    sed -i "s|exit 0|echo 'src/gz custom_jell_adb https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb' >> /etc/opkg/customfeeds.list\nexit 0|g" $BOOT_SCRIPT
+    
+    # 保底：允许不信任源（自建源）免签名通过校验，防止因为没附带公钥导致读取失败
+    sed -i "s|exit 0|echo 'option check_signature 0' >> /etc/opkg.conf\nexit 0|g" $BOOT_SCRIPT
+    
+    echo "Successfully injected pure-text URL into customfeeds.list via boot script root!"
+fi
 
 
 # 2. 默认主机名 -> NatserverWrt (顶栏侧边品牌等取 hostname)
