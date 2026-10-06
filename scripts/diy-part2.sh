@@ -9,14 +9,25 @@ if ! grep -q '192\.168\.1\.3' package/base-files/files/bin/config_generate; then
   echo "ERROR: LAN 默认 IP 192.168.1.3 未生效" >&2; exit 1
 fi
 
+
+# =====================================================================
+# 5. 【核心修复】将第三方源注入改入开机脚本，并强行关闭宿主机编译期 APK 安全审查
+# =====================================================================
+# A. 清除会引发宿主机编译期安全阻断的实体静态文件，防止 1 error 报错
+rm -rf package/base-files/files/etc/apk/repositories.d
+# B. 修改宿主机打包系统的 apk 全局配置文件，强制放行未信任源
+mkdir -p package/base-files/files/etc/apk
+echo "option allow_untrusted" > package/base-files/files/etc/apk/apk.conf
+# 【开机强制动态注入】在这里动态建立 repositories.d 目录并写入完整软件源
+# 此时由于路由器已经顺利开机，编译期的安全审查阶段早已过去，包管理器能够完美拉取扩展包！
+mkdir -p /etc/apk/repositories.d
+echo 'https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53' > /etc/apk/repositories.d/customfeeds.list
 # =====================================================================
 # 【智能多频隔离 + 信道自动】双重保险开机 UCI 初始化脚本
 # =====================================================================
 mkdir -p package/base-files/files/etc/uci-defaults
-
 cat > package/base-files/files/etc/uci-defaults/99-default-wifi << 'EOF'
 #!/bin/sh
-
 # 策略 1：首先将所有无线物理硬件（radio）的信道强行设置为自动（auto）
 uci -q show wireless | grep "=wifi-device" | cut -d'.' -f2 | cut -d'=' -f1 | while read -r device; do
     uci set wireless.${device}.channel='auto'
@@ -42,7 +53,6 @@ uci commit wireless
 # 策略 3：通过排队顺序终极切割，确保原厂驱动双频百分之百完美剥离
 ifaces=$(uci -q show wireless | grep "=wifi-iface" | cut -d'.' -f2 | cut -d'=' -f1)
 count=0
-
 for iface in $ifaces; do
     count=$((count + 1))
     if [ "$count" -eq 1 ]; then
@@ -54,26 +64,10 @@ for iface in $ifaces; do
     fi
     uci set wireless.${iface}.key='mqy-4708'
 done
-
 uci commit wireless
 exit 0
 EOF
-
 chmod +x package/base-files/files/etc/uci-defaults/99-default-wifi
-
-
-# =====================================================================
-# 5. 【核心修复】将第三方源注入改入开机脚本，并强行关闭宿主机编译期 APK 安全审查
-# =====================================================================
-# A. 清除会引发宿主机编译期安全阻断的实体静态文件，防止 1 error 报错
-rm -rf package/base-files/files/etc/apk/repositories.d
-# B. 修改宿主机打包系统的 apk 全局配置文件，强制放行未信任源
-mkdir -p package/base-files/files/etc/apk
-echo "option allow_untrusted" > package/base-files/files/etc/apk/apk.conf
-# 【开机强制动态注入】在这里动态建立 repositories.d 目录并写入完整软件源
-# 此时由于路由器已经顺利开机，编译期的安全审查阶段早已过去，包管理器能够完美拉取扩展包！
-mkdir -p /etc/apk/repositories.d
-echo 'https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53' > /etc/apk/repositories.d/customfeeds.list
 
 
 # 2. 默认主机名 -> NatserverWrt (顶栏侧边品牌等取 hostname)
