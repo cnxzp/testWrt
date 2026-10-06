@@ -9,7 +9,7 @@ on:
 
 env:
   REPO_URL: https://github.com/fanchmwrt/fanchmwrt-snapshot.git
-  REPO_BRANCH: fanchmwrt-26.05
+  REPO_BRANCH: fanchmwrt-26.08
   CONFIG_FILE: config/tenda-be12-pro-daed.config
   DIY_P1_SH: scripts/diy-part1.sh
   DIY_P2_SH: scripts/diy-part2.sh
@@ -107,6 +107,7 @@ jobs:
         ../$DIY_P2_SH
         rm -f .config
         cp ../$CONFIG_FILE .config
+        CONFIG_PACKAGE_luci-app-store=y
         make defconfig
         echo "===== 生效的关键配置 ====="
         grep -E "tenda_be12-pro|TARGET_mediatek|BPF_TOOLCHAIN|DEVEL=|PACKAGE_(dae|daed|luci-app-daede)|KERNEL_DEBUG_INFO|KERNEL_BPF_EVENTS|KERNEL_XDP_SOCKETS|v2ray-geo|vmlinux-btf|kmod-sched-bpf|kmod-veth" .config || true
@@ -122,6 +123,7 @@ jobs:
         check "^CONFIG_BPF_TOOLCHAIN_HOST=y"
         check "^CONFIG_KERNEL_DEBUG_INFO=y"
         check "^CONFIG_KERNEL_DEBUG_INFO_BTF=y"
+        check "^CONFIG_PACKAGE_luci-app-store=y"
         check "^CONFIG_PACKAGE_dae=y"
         check "^CONFIG_PACKAGE_daed=y"
         check "^CONFIG_PACKAGE_luci-app-daede=y"
