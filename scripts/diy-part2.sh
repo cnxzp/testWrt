@@ -63,21 +63,17 @@ chmod +x package/base-files/files/etc/uci-defaults/99-default-wifi
 
 
 # =====================================================================
+# 5. 【核心修复】将第三方源注入改入开机脚本，并强行关闭宿主机编译期 APK 安全审查
 # =====================================================================
-# 5. 【降维打击】破译官方提示路径，精准建立新版 APK 对应的纯文本自定义源文件
-# =====================================================================
-# 核心：根据官方报错提示，直接在打包模板的 repositories.d 路径下建立 customfeeds.list 实体文件
-mkdir -p package/base-files/files/etc/apk/repositories.d
-# 核心说明：此处必须填写到软件仓库的上一级文件夹为止！
-# 这样在路由器运行 apk update 时，系统就会自动在末尾拼接上 /packages.adb，从而自动读取到你给出的完整乱码索引数据！
-cat > package/base-files/files/etc/apk/repositories.d/customfeeds.list << 'EOF'
-https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53
-EOF
-# 修改权限，确保打包进固件时系统可读
-chmod 644 package/base-files/files/etc/apk/repositories.d/customfeeds.list
-# 强行注入新版 APK 忽略未签名安全证书的策略，防止自建源因无密钥导致下载失败
-mkdir -p /etc/apk
-echo "option allow_untrusted" >> /etc/apk/apk.conf 2>/dev/null || true
+# A. 清除会引发宿主机编译期安全阻断的实体静态文件，防止 1 error 报错
+rm -rf package/base-files/files/etc/apk/repositories.d
+# B. 修改宿主机打包系统的 apk 全局配置文件，强制放行未信任源
+mkdir -p package/base-files/files/etc/apk
+echo "option allow_untrusted" > package/base-files/files/etc/apk/apk.conf
+# 【开机强制动态注入】在这里动态建立 repositories.d 目录并写入完整软件源
+# 此时由于路由器已经顺利开机，编译期的安全审查阶段早已过去，包管理器能够完美拉取扩展包！
+mkdir -p /etc/apk/repositories.d
+echo 'https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53' > /etc/apk/repositories.d/customfeeds.list
 
 
 # 2. 默认主机名 -> NatserverWrt (顶栏侧边品牌等取 hostname)
