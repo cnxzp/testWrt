@@ -107,7 +107,6 @@ jobs:
         ../$DIY_P2_SH
         rm -f .config
         cp ../$CONFIG_FILE .config
-        CONFIG_PACKAGE_luci-app-store=y
         make defconfig
         echo "===== 生效的关键配置 ====="
         grep -E "tenda_be12-pro|TARGET_mediatek|BPF_TOOLCHAIN|DEVEL=|PACKAGE_(dae|daed|luci-app-daede)|KERNEL_DEBUG_INFO|KERNEL_BPF_EVENTS|KERNEL_XDP_SOCKETS|v2ray-geo|vmlinux-btf|kmod-sched-bpf|kmod-veth" .config || true
