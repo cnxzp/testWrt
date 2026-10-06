@@ -64,26 +64,20 @@ chmod +x package/base-files/files/etc/uci-defaults/99-default-wifi
 
 # =====================================================================
 # =====================================================================
-# 5. 【降维打击】破译新版影子兼容层，强行向真实路径注入纯文本软件源
+# 5. 【降维打击】破译官方提示路径，精准建立新版 APK 对应的纯文本自定义源文件
 # =====================================================================
-BOOT_SCRIPT="package/base-files/files/etc/init.d/boot"
-
-if [ -f "$BOOT_SCRIPT" ]; then
-    # 核心：在新版 apk 影子包管理器启动前，强制创建正确的包含 .d 的配置文件夹
-    # 绝对不去下载那个乱码的 packages.adb，而是直接写入纯文本仓库根链接
-    sed -i '2i\\tmkdir -p /etc/apk/repositories.d' $BOOT_SCRIPT
-    
-    # 注入保底 1：直接喂给新版 apk 引擎最标准的纯文本地址（在 boot 倒数第二行强行追加）
-    sed -i "s|exit 0|echo 'https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb' >> /etc/apk/repositories.d/customfeeds.list\nexit 0|g" $BOOT_SCRIPT
-    
-    # 注入保底 2：满足旧版 opkg 伪装命令读取 customfeeds.list 文件的格式诉求（写死纯文本字符串）
-    sed -i "s|exit 0|echo 'src/gz custom_jell_adb https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb' >> /etc/apk/repositories.d/customfeeds.list\nexit 0|g" $BOOT_SCRIPT
-    
-    # 强行允许系统放行未签名的自建第三方软件源，杜绝安全证书报错
-    sed -i "s|exit 0|echo 'option allow_untrusted' >> /etc/apk/apk.conf\nexit 0|g" $BOOT_SCRIPT
-    
-    echo "Perfectly bypassed the shadow layers and locked down the modern customfeeds.list!"
-fi
+# 核心：根据官方报错提示，直接在打包模板的 repositories.d 路径下建立 customfeeds.list 实体文件
+mkdir -p package/base-files/files/etc/apk/repositories.d
+# 核心说明：此处必须填写到软件仓库的上一级文件夹为止！
+# 这样在路由器运行 apk update 时，系统就会自动在末尾拼接上 /packages.adb，从而自动读取到你给出的完整乱码索引数据！
+cat > package/base-files/files/etc/apk/repositories.d/customfeeds.list << 'EOF'
+https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53
+EOF
+# 修改权限，确保打包进固件时系统可读
+chmod 644 package/base-files/files/etc/apk/repositories.d/customfeeds.list
+# 强行注入新版 APK 忽略未签名安全证书的策略，防止自建源因无密钥导致下载失败
+mkdir -p /etc/apk
+echo "option allow_untrusted" >> /etc/apk/apk.conf 2>/dev/null || true
 
 
 # 2. 默认主机名 -> NatserverWrt (顶栏侧边品牌等取 hostname)
