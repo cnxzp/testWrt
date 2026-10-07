@@ -17,5 +17,7 @@ fi
 # 添加turboacc&istore
 #echo 'src-git turboacc https://github.com/mufeng05/turboacc.git' >> feeds.conf.default
 #echo 'src-git istore https://github.com/linkease/istore.git' >> feeds.conf.default
+# 3. 自建源直接注册为官方预设的 Custom Feed
+echo 'src-git custom_jell_adb https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53' >> feeds.conf.default
 
 cat feeds.conf.default
