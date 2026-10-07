@@ -9,9 +9,36 @@ if ! grep -q '192\.168\.1\.3' package/base-files/files/bin/config_generate; then
   echo "ERROR: LAN 默认 IP 192.168.1.3 未生效" >&2; exit 1
 fi
 
-# 5. 强行允许系统放行未签名的自建第三方软件源，防止 apk 在开机时进行安全证书阻断拦截
-mkdir -p package/base-files/files/etc/apk
-echo "option allow_untrusted" >> package/base-files/files/etc/apk/apk.conf
+# =====================================================================
+# 5. 【终极闭环杀招】将自定义源写入绝对不会被防写清空的系统的核心 rc.local 守护进程中
+# =====================================================================
+mkdir -p package/base-files/files/etc
+
+cat > package/base-files/files/etc/rc.local << 'EOF'
+#!/bin/sh
+
+# 创建异步后台线程，延迟 5 秒执行，完美避开开机时可能存在的文件擦除
+(
+    sleep 5
+    
+    # 智能多向兼容：同时为固件中的旧版影子路径和新版路径建立对应的 repositories 纯文本自定义列表
+    mkdir -p /etc/apk/repositories.d
+    mkdir -p /etc/opkg
+    
+    # 核心：将你指定的仓库根目录纯文本地址以最规范的形态焊死在 customfeeds.list 中
+    # 系统在运行 apk update 或 opkg update 时会自动在末尾叠加 /packages.adb 去提取你的乱码数据库！
+    echo 'https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/' > /etc/apk/repositories.d/customfeeds.list
+    echo 'src/gz custom_jell_adb https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/' > /etc/opkg/customfeeds.list
+    
+    # 强行注入新版包管理器忽略未签名安全证书的策略，防止因为自建源没有公钥数字签名而报错拒绝更新
+    echo "option allow_untrusted" >> /etc/apk/apk.conf
+    echo "option check_signature 0" >> /etc/opkg.conf
+) &
+
+exit 0
+EOF
+
+chmod +x package/base-files/files/etc/rc.local
 # =====================================================================
 # 【智能多频隔离 + 信道自动】双重保险开机 UCI 初始化脚本
 # =====================================================================
