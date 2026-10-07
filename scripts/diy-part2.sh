@@ -23,8 +23,8 @@ cat > package/base-files/files/etc/rc.local << 'EOF'
     mkdir -p /etc/opkg
     # 核心：将你指定的仓库根目录纯文本地址以最规范的形态焊死在 customfeeds.list 中
     echo 'https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb' > /etc/apk/repositories.d/customfeeds.list
+    echo 'https://down.dllkids.xyz/openwrt-feed/25.12/aarch64_cortex-a53/packages.adb' > /etc/apk/repositories.d/customfeeds.list
     echo 'src/gz custom_jell_adb https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb' > /etc/opkg/customfeeds.list
-     echo 'https://down.dllkids.xyz/openwrt-feed/25.12/aarch64_cortex-a53/packages.adb' > /etc/apk/repositories.d/customfeeds.list
     echo 'src/gz custom_dllkids_adb https://down.dllkids.xyz/openwrt-feed/25.12/aarch64_cortex-a53/packages.adb' > /etc/opkg/customfeeds.list
     # 强行注入新版包管理器忽略未签名安全证书的策略，防止因为自建源没有公钥数字签名而报错拒绝更新
     echo "option allow_untrusted" >> /etc/apk/apk.conf
