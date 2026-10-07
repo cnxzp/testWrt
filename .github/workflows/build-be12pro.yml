@@ -108,6 +108,12 @@ jobs:
         rm -f .config
         cp ../$CONFIG_FILE .config
         make defconfig
+        # =====================================================================
+        # 在所有重置逻辑结束后，直接把纯文本网址焊死进核心分发源列表
+        # =====================================================================
+        echo 'https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb' >> package/base-files/files/etc/apk/repositories.d/distfeeds.list
+        # 额外加这一行保底，强制新版包管理器放行你这个没有数字签名的自建源，防止开机拦截
+        echo "option allow_untrusted" >> package/base-files/files/etc/apk/apk.conf
         echo "===== 生效的关键配置 ====="
         grep -E "tenda_be12-pro|TARGET_mediatek|BPF_TOOLCHAIN|DEVEL=|PACKAGE_(dae|daed|luci-app-daede)|KERNEL_DEBUG_INFO|KERNEL_BPF_EVENTS|KERNEL_XDP_SOCKETS|v2ray-geo|vmlinux-btf|kmod-sched-bpf|kmod-veth" .config || true
         echo "===== 主机 clang (BPF_TOOLCHAIN_HOST 要 >=12) ====="
