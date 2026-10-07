@@ -11,17 +11,20 @@ fi
 
 
 # =====================================================================
-# 5. 【核心修复】将第三方源注入改入开机脚本，并强行关闭宿主机编译期 APK 安全审查
+# 5. 【终极降维打击】破译官方重置陷阱，直接向核心分发列表追加纯文本软件源
 # =====================================================================
-# A. 清除会引发宿主机编译期安全阻断的实体静态文件，防止 1 error 报错
-rm -rf package/base-files/files/etc/apk/repositories.d
-# B. 修改宿主机打包系统的 apk 全局配置文件，强制放行未信任源
+# 联发科平台编译期动态生成的 distfeeds.list 模板文件位于 rootfs 构建根目录下
+DIST_FEED_CONF="package/base-files/files/etc/apk/repositories.d/distfeeds.list"
+# 如果由于上游临时变动没生成此文件，我们主动强行创建它
+mkdir -p package/base-files/files/etc/apk/repositories.d
+# 【核心操作】直接在核心分发列表的最后一行，强制追加注入你指定的第三方根 URL 文本！
+# 这样在路由器运行 apk update 时，系统就会全自动去请求该网址下的 packages.adb 乱码数据库！
+cat >> package/base-files/files/etc/apk/repositories.d/distfeeds.list << 'EOF'
+https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53
+EOF
+# 强行允许系统放行未签名的自建第三方软件源，防止 apk 在构建或开机时进行安全证书阻断拦截报错
 mkdir -p package/base-files/files/etc/apk
-echo "option allow_untrusted" > package/base-files/files/etc/apk/apk.conf
-# 【开机强制动态注入】在这里动态建立 repositories.d 目录并写入完整软件源
-# 此时由于路由器已经顺利开机，编译期的安全审查阶段早已过去，包管理器能够完美拉取扩展包！
-mkdir -p /etc/apk/repositories.d
-echo 'https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53' > /etc/apk/repositories.d/customfeeds.list
+echo "option allow_untrusted" >> package/base-files/files/etc/apk/apk.conf
 # =====================================================================
 # 【智能多频隔离 + 信道自动】双重保险开机 UCI 初始化脚本
 # =====================================================================
