@@ -10,23 +10,23 @@ if ! grep -q '192\.168\.1\.3' package/base-files/files/bin/config_generate; then
 fi
 
 # =====================================================================
-# 将自定义源写入绝对不会被防写清空的系统的核心 rc.local 守护进程中
+# 添加自定义软件源--- rc.local 守护进程（改用 >> 追加防止抹除）
 # =====================================================================
 mkdir -p package/base-files/files/etc
 cat > package/base-files/files/etc/rc.local << 'EOF'
 #!/bin/sh
-# 创建异步后台线程，延迟 5 秒执行，完美避开开机时可能存在的文件擦除
 (
     sleep 5
-    # 智能多向兼容：同时为固件中的旧版影子路径和新版路径建立对应的 repositories 纯文本自定义列表
     mkdir -p /etc/apk/repositories.d
     mkdir -p /etc/opkg
-    # 核心：将你指定的仓库根目录纯文本地址以最规范的形态焊死在 customfeeds.list 中
-    echo 'https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb' > /etc/apk/repositories.d/customfeeds.list
-    echo 'https://down.dllkids.xyz/openwrt-feed/25.12/aarch64_cortex-a53/packages.adb' > /etc/apk/repositories.d/customfeeds.list
-    echo 'src/gz custom_jell_adb https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb' > /etc/opkg/customfeeds.list
-    echo 'src/gz custom_dllkids_adb https://down.dllkids.xyz/openwrt-feed/25.12/aarch64_cortex-a53/packages.adb' > /etc/opkg/customfeeds.list
-    # 强行注入新版包管理器忽略未签名安全证书的策略，防止因为自建源没有公钥数字签名而报错拒绝更新
+    # 第一行可以用 > 或者是用 >>（如果你想保留原厂自带的注释，这里也必须用 >>）
+    # 为了保险，如果你想完全不破坏原厂注释，这里全部统一改为 >> 
+    echo 'https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb' >> /etc/apk/repositories.d/customfeeds.list
+    echo 'src/gz custom_jell_adb https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53/packages.adb' >> /etc/opkg/customfeeds.list 
+    # 核心修正：后续的写入必须全部使用 >> 追加，绝对不能用单大于号 > !
+    echo 'https://down.dllkids.xyz/openwrt-feed/25.12/aarch64_cortex-a53/packages.adb' >> /etc/apk/repositories.d/customfeeds.list
+    echo 'src/gz custom_dllkids_adb https://down.dllkids.xyz/openwrt-feed/25.12/aarch64_cortex-a53/packages.adb' >> /etc/opkg/customfeeds.list
+    # 放行未签名策略
     echo "option allow_untrusted" >> /etc/apk/apk.conf
     echo "option check_signature 0" >> /etc/opkg.conf
 ) &
