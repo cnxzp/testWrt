@@ -9,20 +9,7 @@ if ! grep -q '192\.168\.1\.3' package/base-files/files/bin/config_generate; then
   echo "ERROR: LAN 默认 IP 192.168.1.3 未生效" >&2; exit 1
 fi
 
-
-# =====================================================================
-# 5. 【终极降维打击】破译官方重置陷阱，直接向核心分发列表追加纯文本软件源
-# =====================================================================
-# 联发科平台编译期动态生成的 distfeeds.list 模板文件位于 rootfs 构建根目录下
-DIST_FEED_CONF="package/base-files/files/etc/apk/repositories.d/distfeeds.list"
-# 如果由于上游临时变动没生成此文件，我们主动强行创建它
-mkdir -p package/base-files/files/etc/apk/repositories.d
-# 【核心操作】直接在核心分发列表的最后一行，强制追加注入你指定的第三方根 URL 文本！
-# 这样在路由器运行 apk update 时，系统就会全自动去请求该网址下的 packages.adb 乱码数据库！
-cat >> package/base-files/files/etc/apk/repositories.d/distfeeds.list << 'EOF'
-https://down.dllkids.xyz/openwrt-feed/jell/25.12/aarch64_cortex-a53
-EOF
-# 强行允许系统放行未签名的自建第三方软件源，防止 apk 在构建或开机时进行安全证书阻断拦截报错
+# 5. 强行允许系统放行未签名的自建第三方软件源，防止 apk 在开机时进行安全证书阻断拦截
 mkdir -p package/base-files/files/etc/apk
 echo "option allow_untrusted" >> package/base-files/files/etc/apk/apk.conf
 # =====================================================================
