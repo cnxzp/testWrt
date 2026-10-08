@@ -1,1 +1,180 @@
 
+name: Build FanchmWrt baili + daed
+
+on:
+  # 手动触发 (仅测试/紧急用); 正常只由 schedule 在上游有更新时自动构建
+  workflow_dispatch:
+  # 每天检查一次上游是否有新提交 (UTC 00:20 = 北京 08:20); 无更新时 check 直接跳过, 不会构建
+  schedule:
+    - cron: '20 0 * * *'
+
+env:
+  REPO_URL: https://github.com/fanchmwrt/fanchmwrt-snapshot.git
+  REPO_BRANCH: fanchmwrt-26.05
+  CONFIG_FILE: config/baili-daed.config
+  DIY_P1_SH: scripts/diy-part1.sh
+  DIY_P2_SH: scripts/diy-part2.sh
+  TZ: Asia/Shanghai
+
+permissions:
+  contents: write
+
+jobs:
+  # 检查上游 fanchmwrt-snapshot 是否有新提交
+  check:
+    runs-on: ubuntu-22.04
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+      upstream: ${{ steps.check.outputs.upstream }}
+      tag: ${{ steps.check.outputs.tag }}
+    steps:
+    - name: 检查上游更新
+      id: check
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        set -eu
+        UP=$(git ls-remote "$REPO_URL" "refs/heads/$REPO_BRANCH" | head -1 | cut -f1)
+        SHORT="${UP:0:7}"
+        TAG="tenda-be12-pro-v$(date -u +%Y%m%d)-${SHORT}"
+        BUILD=true
+        if [ "${{ github.event_name }}" = "schedule" ]; then
+          if gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[] | (.tag_name, .name, .body)' | grep -q "$SHORT"; then
+            BUILD=false
+            echo "上游 $SHORT 已有对应发行版, 跳过本次构建"
+          else
+            echo "检测到上游更新: $UP"
+          fi
+        fi
+        echo "upstream=$UP" >> "$GITHUB_OUTPUT"
+        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+        echo "build=$BUILD tag=$TAG upstream=$UP"
+
+  build:
+    needs: check
+    if: needs.check.outputs.build == 'true'
+
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout 本仓库(工作流+配置)
+      uses: actions/checkout@v4
+
+    - name: 初始化编译环境
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        # 彻底释放 runner 磁盘 (保留 clang/node/runner 本体)
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell \
+          /usr/local/share/swift /usr/local/share/edge_driver /opt/hostedtoolcache \
+          /usr/local/lib/node_modules /usr/local/typescript /usr/local/go /home/linuxbrew \
+          /usr/local/.cache /etc/apt/sources.list.d/*
+        sudo docker image prune --all --force 2>/dev/null || true
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+          bzip2 ccache clang cmake cpio curl bash device-tree-compiler ecj fastjar flex gawk gettext git gperf haveged \
+          help2man intltool libacl1-dev libattr1-dev libelf-dev libfuse-dev libglib2.0-dev libgmp3-dev libltdl-dev \
+          libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libpython3-dev libreadline-dev libssl-dev \
+          libtool libz-dev lld llvm lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf \
+          python3 python3-pip python3-ply python3-docutils qemu-utils rsync squashfs-tools subversion \
+          swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd yasm zlib1g-dev zstd
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "$TZ"
+        df -h
+
+    - name: 克隆 fanchmwrt-snapshot 源码
+      run: |
+        git clone --depth 1 --branch $REPO_BRANCH $REPO_URL openwrt
+        ls -lh openwrt/ | head -30
+
+    - name: 自定义 feeds (diy-part1, 加 daed 源)
+      run: |
+        chmod +x $DIY_P1_SH
+        cd openwrt
+        ../$DIY_P1_SH
+
+    - name: 更新并安装 feeds
+      run: |
+        cd openwrt
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: 自定义配置 (diy-part2)
+      run: |
+        chmod +x $DIY_P2_SH
+        cd openwrt
+        ../$DIY_P2_SH
+        rm -f .config
+        cp ../$CONFIG_FILE .config
+        make defconfig
+        echo "===== 生效的关键配置 ====="
+        grep -E "tenda_be12-pro|TARGET_mediatek|BPF_TOOLCHAIN|DEVEL=|PACKAGE_(dae|daed|luci-app-daede)|KERNEL_DEBUG_INFO|KERNEL_BPF_EVENTS|KERNEL_XDP_SOCKETS|v2ray-geo|vmlinux-btf|kmod-sched-bpf|kmod-veth" .config || true
+        echo "===== 主机 clang (BPF_TOOLCHAIN_HOST 要 >=12) ====="
+        which clang llc opt llvm-strip; clang --version | head -2
+        echo "===== defconfig 后硬检查 ====="
+        fail=0
+        check() { if ! grep -q "$1" .config; then echo "FAIL: $1"; fail=1; else echo "OK: $1"; fi; }
+        check "^CONFIG_TARGET_mediatek=y"
+        check "^CONFIG_TARGET_mediatek_filogic=y"
+        check "^CONFIG_TARGET_mediatek_filogic_DEVICE_tenda_be12-pro=y"
+        check "^CONFIG_DEVEL=y"
+        check "^CONFIG_BPF_TOOLCHAIN_HOST=y"
+        check "^CONFIG_KERNEL_DEBUG_INFO=y"
+        check "^CONFIG_KERNEL_DEBUG_INFO_BTF=y"
+        #check "^CONFIG_PACKAGE_luci-app-store=y"
+        check "^CONFIG_PACKAGE_dae=y"
+        check "^CONFIG_PACKAGE_daed=y"
+        check "^CONFIG_PACKAGE_luci-app-daede=y"
+        check "^CONFIG_PACKAGE_vmlinux-btf=[ym]"
+        check "^CONFIG_PACKAGE_kmod-sched-bpf=y"
+        check "^CONFIG_PACKAGE_v2ray-geoip=y"
+        check "^CONFIG_KERNEL_CGROUPS=y"
+        
+        if [ "$fail" -ne 0 ]; then echo "ERROR: defconfig 后关键配置丢失"; exit 1; fi
+        echo "所有关键配置校验通过"
+
+    - name: 下载源码包 (make download)
+      run: |
+        cd openwrt
+        make download -j$(nproc)
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: 编译固件
+      run: |
+        cd openwrt
+        echo -e "$(nproc) thread compile"
+        make -j$(($(nproc)+1)) || make -j1 V=s
+        echo "BUILD_STATUS=success" >> $GITHUB_ENV
+
+    - name: 整理固件
+      if: env.BUILD_STATUS == 'success'
+      run: |
+        cd openwrt
+        mkdir -p ../firmware
+        # 保留 Tenda BE12 Pro 相关固件 + dae/daed 包
+        find bin/targets/mediatek/filogic/ -type f \( -name "*tenda_be12-pro*" -o -name "*.manifest" -o -name "config.buildinfo" \) -exec cp -v {} ../firmware/ \;
+        find bin/packages/ -type f \( -name "dae_*" -o -name "daed_*" -o -name "luci-app-daede*" -o -name "luci-i18n-daede*" -o -name "vmlinux-btf*" -o -name "v2ray-geo*" \) 2>/dev/null -exec cp -v {} ../firmware/ \; || true
+        ls -lh ../firmware/
+
+    - name: 上传固件到 Artifact
+      uses: actions/upload-artifact@v4
+      if: env.BUILD_STATUS == 'success'
+      with:
+        name: fanchmwrt-tenda-be12-pro-daed
+        path: firmware/*
+
+    - name: 发布到 Release
+      if: env.BUILD_STATUS == 'success'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ needs.check.outputs.tag }}
+        name: Tenda BE12 Pro + daed ${{ needs.check.outputs.tag }} (内置daed全家桶)
+        target_commitish: ${{ github.sha }}
+        files: firmware/*
+        body: |
+          Tenda BE12 Pro 一体固件, 基于 fanchmwrt-snapshot 26.05, 内置 daed 全家桶, 开箱即用。
+
+          上游同步: fanchmwrt/fanchmwrt-snapshot@${{ needs.check.outputs.upstream }}
