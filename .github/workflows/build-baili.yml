@@ -108,6 +108,8 @@ jobs:
         ../$DIY_P2_SH
         rm -f .config
         cp ../$CONFIG_FILE .config
+        # ===== 核心修复：强行删除上游源码中损坏的 U-Boot 补丁，防止编译报错 =====
+        rm -f package/boot/uboot-mediatek/patches/472-add-globitel-bt-r320.patch
         make defconfig
         echo "===== 生效的关键配置 ====="
         grep -E "jdcloud_re-cp-03|TARGET_mediatek|BPF_TOOLCHAIN|DEVEL=|PACKAGE_(dae|daed|luci-app-daede)|KERNEL_DEBUG_INFO|KERNEL_BPF_EVENTS|KERNEL_XDP_SOCKETS|v2ray-geo|vmlinux-btf|kmod-sched-bpf|kmod-veth" .config || true
