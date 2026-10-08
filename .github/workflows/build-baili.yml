@@ -36,7 +36,7 @@ jobs:
         set -eu
         UP=$(git ls-remote "$REPO_URL" "refs/heads/$REPO_BRANCH" | head -1 | cut -f1)
         SHORT="${UP:0:7}"
-        TAG="tenda-be12-pro-v$(date -u +%Y%m%d)-${SHORT}"
+        TAG="jdcloud-re-cp-03-v$(date -u +%Y%m%d)-${SHORT}"
         BUILD=true
         if [ "${{ github.event_name }}" = "schedule" ]; then
           if gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[] | (.tag_name, .name, .body)' | grep -q "$SHORT"; then
@@ -110,7 +110,7 @@ jobs:
         cp ../$CONFIG_FILE .config
         make defconfig
         echo "===== 生效的关键配置 ====="
-        grep -E "tenda_be12-pro|TARGET_mediatek|BPF_TOOLCHAIN|DEVEL=|PACKAGE_(dae|daed|luci-app-daede)|KERNEL_DEBUG_INFO|KERNEL_BPF_EVENTS|KERNEL_XDP_SOCKETS|v2ray-geo|vmlinux-btf|kmod-sched-bpf|kmod-veth" .config || true
+        grep -E "jdcloud_re-cp-03|TARGET_mediatek|BPF_TOOLCHAIN|DEVEL=|PACKAGE_(dae|daed|luci-app-daede)|KERNEL_DEBUG_INFO|KERNEL_BPF_EVENTS|KERNEL_XDP_SOCKETS|v2ray-geo|vmlinux-btf|kmod-sched-bpf|kmod-veth" .config || true
         echo "===== 主机 clang (BPF_TOOLCHAIN_HOST 要 >=12) ====="
         which clang llc opt llvm-strip; clang --version | head -2
         echo "===== defconfig 后硬检查 ====="
@@ -118,7 +118,7 @@ jobs:
         check() { if ! grep -q "$1" .config; then echo "FAIL: $1"; fail=1; else echo "OK: $1"; fi; }
         check "^CONFIG_TARGET_mediatek=y"
         check "^CONFIG_TARGET_mediatek_filogic=y"
-        check "^CONFIG_TARGET_mediatek_filogic_DEVICE_tenda_be12-pro=y"
+        check "^CONFIG_TARGET_mediatek_filogic_DEVICE_jdcloud_re-cp-03=y"
         check "^CONFIG_DEVEL=y"
         check "^CONFIG_BPF_TOOLCHAIN_HOST=y"
         check "^CONFIG_KERNEL_DEBUG_INFO=y"
@@ -154,8 +154,8 @@ jobs:
       run: |
         cd openwrt
         mkdir -p ../firmware
-        # 保留 Tenda BE12 Pro 相关固件 + dae/daed 包
-        find bin/targets/mediatek/filogic/ -type f \( -name "*tenda_be12-pro*" -o -name "*.manifest" -o -name "config.buildinfo" \) -exec cp -v {} ../firmware/ \;
+        # 保留京东云百里相关固件 + dae/daed 包
+        find bin/targets/mediatek/filogic/ -type f \( -name "*jdcloud_re-cp-03*" -o -name "*.manifest" -o -name "config.buildinfo" \) -exec cp -v {} ../firmware/ \;
         find bin/packages/ -type f \( -name "dae_*" -o -name "daed_*" -o -name "luci-app-daede*" -o -name "luci-i18n-daede*" -o -name "vmlinux-btf*" -o -name "v2ray-geo*" \) 2>/dev/null -exec cp -v {} ../firmware/ \; || true
         ls -lh ../firmware/
 
@@ -163,7 +163,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: env.BUILD_STATUS == 'success'
       with:
-        name: fanchmwrt-tenda-be12-pro-daed
+        name: fanchmwrt-jdcloud-re-cp-03-daed
         path: firmware/*
 
     - name: 发布到 Release
@@ -171,10 +171,10 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ needs.check.outputs.tag }}
-        name: Tenda BE12 Pro + daed ${{ needs.check.outputs.tag }} (内置daed全家桶)
+        name: jdcloud-re-cp-03-daed ${{ needs.check.outputs.tag }} (内置daed全家桶)
         target_commitish: ${{ github.sha }}
         files: firmware/*
         body: |
-          Tenda BE12 Pro 一体固件, 基于 fanchmwrt-snapshot 26.05, 内置 daed 全家桶, 开箱即用。
+          京东云百里（RE-CP-03） 一体固件, 基于 fanchmwrt-snapshot 26.05, 内置 daed 全家桶, 开箱即用。
 
           上游同步: fanchmwrt/fanchmwrt-snapshot@${{ needs.check.outputs.upstream }}
