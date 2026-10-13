@@ -77,7 +77,7 @@ jobs:
           libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libpython3-dev libreadline-dev libssl-dev \
           libtool libz-dev lld llvm lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf \
           python3 python3-pip python3-ply python3-docutils qemu-utils rsync squashfs-tools subversion \
-          swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd yasm zlib1g-dev zstd
+          swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd yasm zlib1g-dev zstd luci-i18n-ttyd-zh-cn
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
         sudo timedatectl set-timezone "$TZ"
