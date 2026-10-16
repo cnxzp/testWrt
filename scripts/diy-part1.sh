@@ -16,7 +16,7 @@ fi
 
 # 添加luci-app-temp-status&istore
 if ! grep -q "temp-status" feeds.conf; then
-  echo 'src-git temp-status https://github.com/OneNAS-space/luci-app-temp-status.git;master' >> feeds.conf
+  echo 'src-git temp-status https://github.com/OneNAS-space/luci-app-temp-status.git' >> feeds.conf
 fi
 #echo 'src-git istore https://github.com/linkease/istore.git' >> feeds.conf.default
 
