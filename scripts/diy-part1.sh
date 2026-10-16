@@ -22,6 +22,5 @@ if ! grep -qE '^src-git[[:space:]]+temp-status[[:space:]]' "$FEEDS_FILE"; then
   printf 'src-git temp-status https://github.com/OneNAS-space/luci-app-temp-status.git;master\n' >> "$FEEDS_FILE"
 fi
 
-cat "$FEEDS_FILE"
-
 #cat feeds.conf.default
+cat "$FEEDS_FILE"
