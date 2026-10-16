@@ -14,18 +14,8 @@ fi
 #   echo 'src-git daed_luci https://github.com/QiuSimons/luci-app-daed.git' >> feeds.conf.default
 # fi
 
-#cat feeds.conf.default
 
 # 添加luci-app-temp-status&istore
-FEEDS_FILE="feeds.conf.default"
-[ -f feeds.conf ] && FEEDS_FILE="feeds.conf"
+echo 'src-git temp-status https://github.com/OneNAS-space/luci-app-temp-status.git' >> feeds.conf.default
 
-LINE='src-git temp-status https://github.com/OneNAS-space/luci-app-temp-status.git'
-
-if ! grep -qE '^src-git[[:space:]]+temp-status([[:space:]]|$)' "$FEEDS_FILE"; then
-  printf '%s\n' "$LINE" | tr -d '\r' >> "$FEEDS_FILE"
-fi
-
-# 顺手把整个 feeds.conf 文件里可能存在的 CR 清掉
-sed -i 's/\r$//' "$FEEDS_FILE"
-cat -A "$FEEDS_FILE" | tail -3
+cat feeds.conf.default
