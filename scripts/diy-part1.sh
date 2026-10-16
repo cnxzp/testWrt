@@ -15,7 +15,7 @@ fi
 # fi
 
 # 添加luci-app-temp-status&istore
-echo 'src-git temp-ststus https://github.com/gSpotx2f/luci-app-temp-status.git' >> feeds.conf.default
+echo 'src-git tempststus https://github.com/gSpotx2f/luci-app-temp-status' >> feeds.conf.default
 #echo 'src-git istore https://github.com/linkease/istore.git' >> feeds.conf.default
 
 cat feeds.conf.default
