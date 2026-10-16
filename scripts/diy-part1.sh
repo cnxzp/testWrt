@@ -2,20 +2,20 @@
 # diy-part1: 在 feeds update 之前执行, 主要加第三方源
 # 工作流调用位置: openwrt/ 目录下
 
-# 1. 确保文件末尾有换行符，防止前人留下的内容与我们的新内容挤在同一行
-echo "" >> feeds.conf.default
+# 1. 彻底清除前人在 feeds.conf.default 中遗留的冲突残留行（防止再次报第 11 或 13 行错误）
+sed -i '/luci-app-temp-status/d' feeds.conf.default
+sed -i '/temp-status/d' feeds.conf.default
 
-# 2. 添加 kenzok8 的 dae/daed 源
+# 2. 正常添加符合 Feeds 规范的 kenzok8 dae/daed 源
 if ! grep -q "openwrt-daede" feeds.conf.default; then
   echo 'src-git daede https://github.com/kenzok8/openwrt-daede.git' >> feeds.conf.default
 fi
 
-# 3. 添加 luci-app-temp-status 源（安全追加，带换行）
-if ! grep -q "luci-app-temp-status" feeds.conf.default; then
-  echo "" >> feeds.conf.default
-  echo 'src-git temp-status https://github.com/OneNAS-space/luci-app-temp-status.git' >> feeds.conf.default
-fi
+# 3. 针对“单体插件仓库”temp-status，不采用 feeds 源机制，直接 git clone 丢进本地 package 目录
+# 这样能完全避开 feeds.conf.default 的语法解析，且百分之百能被编译识别
+mkdir -p package/custom
+git clone --depth 1 https://github.com/OneNAS-space/luci-app-temp-status package/custom/luci-app-temp-status
 
-# 4. 打印最终文件内容，方便在 GitHub Actions 日志中排查
-echo "===== 最终的 feeds.conf.default 内容 ====="
+# 4. 打印 feeds.conf.default 结构，确保控制台日志干净无污染
+echo "===== 修复后的 feeds.conf.default 内容 ====="
 cat feeds.conf.default
