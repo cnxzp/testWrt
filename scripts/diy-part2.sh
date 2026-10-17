@@ -118,18 +118,6 @@ if grep -q "'FanchmWrt'" package/fcm/luci-theme-fanchmwrt/htdocs/luci-static/res
 fi
 echo "OK: 标签页/登录窗口标题 -> NatserverWrt"
 
-# 查找源码中所有可能生成该无效源的模板或配置文件，并将其直接抹去
-find package/ -type f -name "distfeeds.list" -exec sed -i '/daede/d' {} + 2>/dev/null || true
-# 如果源码直接将此文件放在 base-files 目录中
-if [ -f package/base-files/files/etc/apk/repositories.d/distfeeds.list ]; then
-    sed -i '/downloads.openwrt.org.*daede/d' package/base-files/files/etc/apk/repositories.d/distfeeds.list
-fi
-
-#!/bin/bash
-# diy-part2: 自定义配置脚本 (工作流在 openwrt/ 目录下执行)
-
-echo "===== 开始进入 diy-part2 自定义微调 ====="
-
 # ---------------------------------------------------------------------
 # 核心解决：去除无效 daede 软件源
 # ---------------------------------------------------------------------
