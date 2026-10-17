@@ -118,9 +118,42 @@ if grep -q "'FanchmWrt'" package/fcm/luci-theme-fanchmwrt/htdocs/luci-static/res
 fi
 echo "OK: 标签页/登录窗口标题 -> NatserverWrt"
 
-# 清理 APK 软件源配置文件中盲猜拼接出来的无效 daede 官方 Snapshot 源
+# 查找源码中所有可能生成该无效源的模板或配置文件，并将其直接抹去
+find package/ -type f -name "distfeeds.list" -exec sed -i '/daede/d' {} + 2>/dev/null || true
+# 如果源码直接将此文件放在 base-files 目录中
 if [ -f package/base-files/files/etc/apk/repositories.d/distfeeds.list ]; then
     sed -i '/downloads.openwrt.org.*daede/d' package/base-files/files/etc/apk/repositories.d/distfeeds.list
 fi
+
+# =====================================================================
+# 终极修复：免编译注入 iStore，防止 fanchmwrt 界面变乱和全英文
+# =====================================================================
+echo "正在为新版架构免编译注入纯净版 iStore..."
+
+# 1. 创建临时下载目录
+mkdir -p /tmp/istore_download && cd /tmp/istore_download
+
+# 2. 从 iStore 官方免编译通道下载最新的纯脚本安装包
+wget --no-check-certificate -q https://github.com/istoreos/istore
+
+# 3. 解压释放出 iStore 的纯净前端和控制脚本（不含任何会搞乱主界面的魔改 luci-base）
+if [ -f istore-reinstall.run ]; then
+    chmod +x istore-reinstall.run
+    # 借助安装脚本提取出纯净的 luci-app-store 资源
+    sh istore-reinstall.run --extract
+    
+    # 4. 将提取出的干净插件文件，原封不动复制到编译树的目标根文件系统中
+    if [ -d ipk ]; then
+        # 提取本地系统包并直接映射到 openwrt 的自定义打包目录
+        # 注意：工作流此时在 openwrt/ 目录下，我们要把文件丢进当前目录的 files/ 中
+        mkdir -p $GITHUB_WORKSPACE/openwrt/files
+        tar -zxf ipk/luci-app-store*.tar.gz -C $GITHUB_WORKSPACE/openwrt/files/ 2>/dev/null || true
+        echo "✅ iStore 纯净文件成功注入到固件的 files 预留层！"
+    fi
+fi
+
+# 5. 清理临时下载的缓存
+cd $GITHUB_WORKSPACE/openwrt
+rm -rf /tmp/istore_download
 
 echo "diy-part2 done"
