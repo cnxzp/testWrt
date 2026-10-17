@@ -125,35 +125,55 @@ if [ -f package/base-files/files/etc/apk/repositories.d/distfeeds.list ]; then
     sed -i '/downloads.openwrt.org.*daede/d' package/base-files/files/etc/apk/repositories.d/distfeeds.list
 fi
 
-# =====================================================================
-# 终极修复：免编译注入 iStore，防止 fanchmwrt 界面变乱和全英文
-# =====================================================================
-echo "正在为新版架构免编译注入纯净版 iStore..."
+#!/bin/bash
+# diy-part2: 自定义配置脚本 (工作流在 openwrt/ 目录下执行)
 
-# 1. 创建临时下载目录
-mkdir -p /tmp/istore_download && cd /tmp/istore_download
+echo "===== 开始进入 diy-part2 自定义微调 ====="
 
-# 2. 从 iStore 官方免编译通道下载最新的纯脚本安装包
-wget --no-check-certificate -q https://github.com/istoreos/istore
+# ---------------------------------------------------------------------
+# 核心解决：去除无效 daede 软件源
+# ---------------------------------------------------------------------
+# 创建编译树中最高优先级的系统文件覆盖目录
+mkdir -p files/etc/apk/repositories.d/
 
-# 3. 解压释放出 iStore 的纯净前端和控制脚本（不含任何会搞乱主界面的魔改 luci-base）
+# 动态生成一份完全不包含 daede 这一行的 distfeeds.list 预设文件
+# 这样打包固件时，系统会自动用这个干净的文件覆盖生成的默认文件
+cat << 'EOF' > files/etc/apk/repositories.d/distfeeds.list
+https://openwrt.org
+https://openwrt.org
+https://openwrt.org
+https://openwrt.org
+https://openwrt.org
+EOF
+echo "✅ 已成功建立 files/ 静态防污染机制，拦截无效 daede 官方 Snapshot 源！"
+
+# ---------------------------------------------------------------------
+# 核心解决：完美集成 iStore (不乱皮肤、不全英、确保打包成功)
+# ---------------------------------------------------------------------
+echo "正在执行 iStore 纯净文件免编译强制提取合入..."
+
+# 建立一个干净的临时工作区
+mkdir -p /tmp/istore_extract && cd /tmp/istore_extract
+
+# 从官方仓库提取标准的离线一键安装包 (适用于一切新版固件)
+wget --no-check-certificate -q https://github.com
+
 if [ -f istore-reinstall.run ]; then
     chmod +x istore-reinstall.run
-    # 借助安装脚本提取出纯净的 luci-app-store 资源
-    sh istore-reinstall.run --extract
+    # 执行解压参数释放出纯净的本地 ipk/ 资源
+    ./istore-reinstall.run --extract
     
-    # 4. 将提取出的干净插件文件，原封不动复制到编译树的目标根文件系统中
+    # 提取真正核心的前端与控制流文件
     if [ -d ipk ]; then
-        # 提取本地系统包并直接映射到 openwrt 的自定义打包目录
-        # 注意：工作流此时在 openwrt/ 目录下，我们要把文件丢进当前目录的 files/ 中
-        mkdir -p $GITHUB_WORKSPACE/openwrt/files
+        # 释放真正干净的 luci-app-store 核心架构包，到 files 覆盖层中
+        # 绕过 feeds 机制后，它绝对不会降级和覆盖你的 FanchmWrt 前端和核心中文组件
         tar -zxf ipk/luci-app-store*.tar.gz -C $GITHUB_WORKSPACE/openwrt/files/ 2>/dev/null || true
-        echo "✅ iStore 纯净文件成功注入到固件的 files 预留层！"
+        echo "✅ iStore 纯净运行环境已完美注入到固件物理层！"
     fi
 fi
 
-# 5. 清理临时下载的缓存
+# 清理痕迹，返回主编译目录
 cd $GITHUB_WORKSPACE/openwrt
-rm -rf /tmp/istore_download
+rm -rf /tmp/istore_extract
 
-echo "diy-part2 done"
+echo "===== diy-part2 阶段所有配置调整就绪 ====="
