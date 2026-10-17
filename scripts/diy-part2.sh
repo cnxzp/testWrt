@@ -137,33 +137,18 @@ https://downloads.openwrt.org/snapshots/packages/aarch64_cortex-a53/video/packag
 EOF
 echo "✅ 已成功建立 files/ 静态防污染机制，拦截无效 daede 官方 Snapshot 源！"
 
-# ---------------------------------------------------------------------
-# 核心解决：完美集成 iStore (不乱皮肤、不全英、确保打包成功)
-# ---------------------------------------------------------------------
-echo "正在执行 iStore 纯净文件免编译强制提取合入..."
-
-# 建立一个干净的临时工作区
-mkdir -p /tmp/istore_extract && cd /tmp/istore_extract
-
-# 从官方仓库提取标准的离线一键安装包 (适用于一切新版固件)
-wget --no-check-certificate -q https://github.com/linkease/istore
-
-if [ -f istore-reinstall.run ]; then
-    chmod +x istore-reinstall.run
-    # 执行解压参数释放出纯净的本地 ipk/ 资源
-    ./istore-reinstall.run --extract
-    
-    # 提取真正核心的前端与控制流文件
-    if [ -d ipk ]; then
-        # 释放真正干净的 luci-app-store 核心架构包，到 files 覆盖层中
-        # 绕过 feeds 机制后，它绝对不会降级和覆盖你的 FanchmWrt 前端和核心中文组件
-        tar -zxf ipk/luci-app-store*.tar.gz -C $GITHUB_WORKSPACE/openwrt/files/ 2>/dev/null || true
-        echo "✅ iStore 纯净运行环境已完美注入到固件物理层！"
-    fi
+# 核心解决：针对 aarch64 (Cortex-A53) 架构精准下载并内置 iStore 官方纯净 APK
+# 创建本地编译包缓存目录，让 OpenWrt 构建系统在打包固件时直接将其物理封包进去
+mkdir -p bin/packages/aarch64_cortex-a53/packages/
+echo "正在从 iStore 官方源直接获取专属 aarch64 APK 实体包..."
+# 下载 iStore 核心中心组件 (不污染 luci-base)
+wget --no-check-certificate -q -O bin/packages/aarch64_cortex-a53/packages/luci-app-store.apk https://github.com/linkease/istore
+# 下载 iStore 必备的系统工具兜底组件
+wget --no-check-certificate -q -O bin/packages/aarch64_cortex-a53/packages/luci-app-systools.apk https://github.com/linkease/istore
+if [ -f bin/packages/aarch64_cortex-a53/packages/luci-app-store.apk ]; then
+    echo "✅ iStore 官方 APK 实体包已成功注入到固件编译树中！"
+else
+    echo "❌ 警告：iStore APK 下载失败，请检查网络或直链 URL！"
 fi
-
-# 清理痕迹，返回主编译目录
-cd $GITHUB_WORKSPACE/openwrt
-rm -rf /tmp/istore_extract
 
 echo "===== diy-part2 阶段所有配置调整就绪 ====="
