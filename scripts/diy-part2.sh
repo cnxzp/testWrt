@@ -139,11 +139,13 @@ mkdir -p files/etc/apk/repositories.d/
 # 动态生成一份完全不包含 daede 这一行的 distfeeds.list 预设文件
 # 这样打包固件时，系统会自动用这个干净的文件覆盖生成的默认文件
 cat << 'EOF' > files/etc/apk/repositories.d/distfeeds.list
-https://openwrt.org
-https://openwrt.org
-https://openwrt.org
-https://openwrt.org
-https://openwrt.org
+https://downloads.openwrt.org/snapshots/targets/mediatek/filogic/packages/packages.adb
+https://downloads.openwrt.org/snapshots/packages/aarch64_cortex-a53/base/packages.adb
+https://downloads.openwrt.org/snapshots/packages/aarch64_cortex-a53/luci/packages.adb
+https://downloads.openwrt.org/snapshots/packages/aarch64_cortex-a53/packages/packages.adb
+https://downloads.openwrt.org/snapshots/packages/aarch64_cortex-a53/routing/packages.adb
+https://downloads.openwrt.org/snapshots/packages/aarch64_cortex-a53/telephony/packages.adb
+https://downloads.openwrt.org/snapshots/packages/aarch64_cortex-a53/video/packages.adb
 EOF
 echo "✅ 已成功建立 files/ 静态防污染机制，拦截无效 daede 官方 Snapshot 源！"
 
@@ -156,7 +158,7 @@ echo "正在执行 iStore 纯净文件免编译强制提取合入..."
 mkdir -p /tmp/istore_extract && cd /tmp/istore_extract
 
 # 从官方仓库提取标准的离线一键安装包 (适用于一切新版固件)
-wget --no-check-certificate -q https://github.com
+wget --no-check-certificate -q https://github.com/linkease/istore
 
 if [ -f istore-reinstall.run ]; then
     chmod +x istore-reinstall.run
