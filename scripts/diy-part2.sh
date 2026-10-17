@@ -118,4 +118,9 @@ if grep -q "'FanchmWrt'" package/fcm/luci-theme-fanchmwrt/htdocs/luci-static/res
 fi
 echo "OK: 标签页/登录窗口标题 -> NatserverWrt"
 
+# 清理 APK 软件源配置文件中盲猜拼接出来的无效 daede 官方 Snapshot 源
+if [ -f package/base-files/files/etc/apk/repositories.d/distfeeds.list ]; then
+    sed -i '/downloads.openwrt.org.*daede/d' package/base-files/files/etc/apk/repositories.d/distfeeds.list
+fi
+
 echo "diy-part2 done"
