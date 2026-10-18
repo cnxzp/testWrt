@@ -118,12 +118,6 @@ if grep -q "'FanchmWrt'" package/fcm/luci-theme-fanchmwrt/htdocs/luci-static/res
 fi
 echo "OK: 标签页/登录窗口标题 -> NatserverWrt"
 
-# ---------------------------------------------------------------------
-# 核心解决：去除无效 daede 软件源
-# ---------------------------------------------------------------------
-# 创建编译树中最高优先级的系统文件覆盖目录
-mkdir -p files/etc/apk/repositories.d/
-
 # 动态生成一份完全不包含 daede 这一行的 distfeeds.list 预设文件
 # 这样打包固件时，系统会自动用这个干净的文件覆盖生成的默认文件
 cat << 'EOF' > files/etc/apk/repositories.d/distfeeds.list
@@ -135,40 +129,5 @@ https://downloads.openwrt.org/snapshots/packages/aarch64_cortex-a53/routing/pack
 https://downloads.openwrt.org/snapshots/packages/aarch64_cortex-a53/telephony/packages.adb
 https://downloads.openwrt.org/snapshots/packages/aarch64_cortex-a53/video/packages.adb
 EOF
-echo "✅ 已成功建立 files/ 静态防污染机制，拦截无效 daede 官方 Snapshot 源！"
-
-# 创建开机静默初始化目录
-mkdir -p files/etc/uci-defaults/
-
-# 动态生成 99-istore-inject 首次开机静默安装脚本
-cat << 'EOF' > files/etc/uci-defaults/99-istore-inject
-#!/bin/sh
-
-# 1. 建立开机时最安全的临时无感释放区
-mkdir -p /tmp/istore_setup
-cd /tmp/istore_setup
-
-# 2. 首次开机动态实时抓取最匹配当前系统 APK 内核架构的 iStore 应用中心组件
-# 此时路由器已连网，在路由器本地调用本地 apk add，绝对不会触发编译器的 mkndx 错误
-wget --no-check-certificate -q https://github.com/linkease/istore
-wget --no-check-certificate -q https://github.com/linkease/istore
-
-# 3. 如果抓取成功，通过路由器本地的 apk 包管理器进行无害化本地物理合入
-if [ -f luci-app-store_aarch64_cortex-a53.apk ]; then
-    # 使用 --allow-untrusted 参数允许安装第三方社区包
-    apk add --allow-untrusted luci-app-store_aarch64_cortex-a53.apk luci-app-systools_all.apk
-fi
-
-# 4. 清理案发现场，绝不占用路由器珍贵的 Flash 空间
-cd /
-rm -rf /tmp/istore_setup
-
-# 告知系统此脚本已圆满完成，下次开机不再重复执行
-exit 0
-EOF
-
-# 赋予该自启脚本最高执行权限
-chmod +x files/etc/uci-defaults/99-istore-inject
-echo "✅ iStore 动态注入沙盒已部署至 files/ 层，完美规避编译期 apk mkndx 强校验！"
 
 echo "===== diy-part2 阶段所有配置调整就绪 ====="
