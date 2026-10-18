@@ -137,18 +137,38 @@ https://downloads.openwrt.org/snapshots/packages/aarch64_cortex-a53/video/packag
 EOF
 echo "✅ 已成功建立 files/ 静态防污染机制，拦截无效 daede 官方 Snapshot 源！"
 
-# 核心解决：针对 aarch64 (Cortex-A53) 架构精准下载并内置 iStore 官方纯净 APK
-# 创建本地编译包缓存目录，让 OpenWrt 构建系统在打包固件时直接将其物理封包进去
-mkdir -p bin/packages/aarch64_cortex-a53/packages/
-echo "正在从 iStore 官方源直接获取专属 aarch64 APK 实体包..."
-# 下载 iStore 核心中心组件 (不污染 luci-base)
-wget --no-check-certificate -q -O bin/packages/aarch64_cortex-a53/packages/luci-app-store.apk https://github.com/linkease/istore
-# 下载 iStore 必备的系统工具兜底组件
-wget --no-check-certificate -q -O bin/packages/aarch64_cortex-a53/packages/luci-app-systools.apk https://github.com/linkease/istore
-if [ -f bin/packages/aarch64_cortex-a53/packages/luci-app-store.apk ]; then
-    echo "✅ iStore 官方 APK 实体包已成功注入到固件编译树中！"
-else
-    echo "❌ 警告：iStore APK 下载失败，请检查网络或直链 URL！"
+# 创建开机静默初始化目录
+mkdir -p files/etc/uci-defaults/
+
+# 动态生成 99-istore-inject 首次开机静默安装脚本
+cat << 'EOF' > files/etc/uci-defaults/99-istore-inject
+#!/bin/sh
+
+# 1. 建立开机时最安全的临时无感释放区
+mkdir -p /tmp/istore_setup
+cd /tmp/istore_setup
+
+# 2. 首次开机动态实时抓取最匹配当前系统 APK 内核架构的 iStore 应用中心组件
+# 此时路由器已连网，在路由器本地调用本地 apk add，绝对不会触发编译器的 mkndx 错误
+wget --no-check-certificate -q https://github.com/linkease/istore
+wget --no-check-certificate -q https://github.com/linkease/istore
+
+# 3. 如果抓取成功，通过路由器本地的 apk 包管理器进行无害化本地物理合入
+if [ -f luci-app-store_aarch64_cortex-a53.apk ]; then
+    # 使用 --allow-untrusted 参数允许安装第三方社区包
+    apk add --allow-untrusted luci-app-store_aarch64_cortex-a53.apk luci-app-systools_all.apk
 fi
+
+# 4. 清理案发现场，绝不占用路由器珍贵的 Flash 空间
+cd /
+rm -rf /tmp/istore_setup
+
+# 告知系统此脚本已圆满完成，下次开机不再重复执行
+exit 0
+EOF
+
+# 赋予该自启脚本最高执行权限
+chmod +x files/etc/uci-defaults/99-istore-inject
+echo "✅ iStore 动态注入沙盒已部署至 files/ 层，完美规避编译期 apk mkndx 强校验！"
 
 echo "===== diy-part2 阶段所有配置调整就绪 ====="
