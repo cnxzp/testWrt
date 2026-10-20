@@ -1,4 +1,4 @@
-# testWrt for tenda be12 pro
+# FanchmWrt for tenda be12 pro
 
 ## 内置软件
 
